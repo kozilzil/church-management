@@ -74,3 +74,5 @@ export interface SessionResponse {
   csrfToken: string;
 }
 export * from './hometax.js';
+
+export type * from './financial-reports.js';

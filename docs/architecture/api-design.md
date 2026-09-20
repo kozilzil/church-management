@@ -140,12 +140,27 @@ assigneeId를 지원한다. profile/출석/새가족/목양 변경은 해당 ver
 
 재정 경로 `/churches/:churchId/finance` 아래에 다음 API를 제공한다. 기존 `/receipts/preview`를 함께 사용한다.
 
-| 경로 | 업무 |
-| --- | --- |
-| `/hometax-submissions` | GET 목록, POST 준비 (requestId로 재시도 중복 방지) |
-| `/hometax-submissions/:id` | GET 불변 스냅샷과 건별 결과 |
-| `/hometax-submissions/:id/download` | POST 미제출 확인 후 파일용 스냅샷·감사 |
-| `/hometax-submissions/:id/items/:itemId/results` | POST 담당자가 확인한 발급/미발급/취소 결과 |
+| 경로                                             | 업무                                               |
+| ------------------------------------------------ | -------------------------------------------------- |
+| `/hometax-submissions`                           | GET 목록, POST 준비 (requestId로 재시도 중복 방지) |
+| `/hometax-submissions/:id`                       | GET 불변 스냅샷과 건별 결과                        |
+| `/hometax-submissions/:id/download`              | POST 미제출 확인 후 파일용 스냅샷·감사             |
+| `/hometax-submissions/:id/items/:itemId/results` | POST 담당자가 확인한 발급/미발급/취소 결과         |
 
 API는 주민등록번호와 완성된 제출 파일을 수신하지 않는다. 다운로드 응답에 브라우저 일회성 입력을
 결합한다. 같은 결과/참조/사유의 재요청은 동일 성공을 반환하고 다른 내용의 덮어쓰기는 충돌로 거부한다.
+
+## 월별 재정보고서
+
+재정 경로 `/churches/:churchId/finance/reports` 아래:
+
+- `GET definitions`: 교회 시간대와 기금. finance.report 필요.
+- `GET ?from=YYYY-MM-DD&to=YYYY-MM-DD&fundId=UUID`: 최대 366일 기간 집계. fundId는 선택.
+- `GET lines?from=...&to=...&ledgerVersion=...&accountId=UUID&fundId=UUID&cursor=UUID`:
+  finance.report + finance.readall, 50행 cursor 조회. fundId/cursor 선택. 원거래별 읽기 권한이 있어야 source 반환.
+- `POST export`: from/to/선택 fundId/ledgerVersion. finance.report + finance.export 및 최근 인증.
+  `{filename,csv}`를 반환하며 다운로드 UI에서 파일을 만든다.
+
+응답 집계 금액과 상세 차변·대변은 정수 문자열이다. JS Number로 변환하지 않는다.
+`selection.ledgerVersion`을 후속 상세·내보내기에 그대로 보내 조회 후 추가된 거래와 섞지 않는다.
+생략된 원장 행과 원거래 설명·개인정보는 집계 API로 노출하지 않는다. 자세한 계산은 ADR-010을 따른다.

@@ -339,3 +339,75 @@ footer {
 .finance-panel summary {
   cursor: pointer;
 }
+
+.financial-report {
+  min-width: 0;
+}
+.report-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.report-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.report-totals .card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  overflow-wrap: anywhere;
+}
+.report-totals strong {
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+}
+.report-table {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 1.5rem 0;
+}
+.report-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.report-table th,
+.report-table td {
+  padding: 0.7rem;
+  border-bottom: 1px solid #dbe3e9;
+  text-align: right;
+  white-space: nowrap;
+}
+.report-table th:first-child,
+.report-table td:first-child {
+  text-align: left;
+}
+.report-table caption {
+  text-align: left;
+  font-weight: 700;
+  padding: 0.75rem 0;
+}
+.report-source {
+  overflow-wrap: anywhere;
+}
+.report-source img {
+  max-width: 100%;
+  max-height: 65vh;
+  object-fit: contain;
+}
+@media (max-width: 650px) {
+  .report-totals {
+    grid-template-columns: 1fr 1fr;
+  }
+  .report-totals strong {
+    font-size: 1rem;
+  }
+  .report-source figure {
+    margin: 0;
+  }
+}

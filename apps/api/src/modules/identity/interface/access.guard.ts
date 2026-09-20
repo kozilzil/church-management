@@ -47,6 +47,7 @@ export class AccessGuard implements CanActivate {
         'expense.approve',
         'expense.pay',
         'finance.close',
+        'finance.export',
         'finance.reverse',
         'offering.review',
         'offering.post',
