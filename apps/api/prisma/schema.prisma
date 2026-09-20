@@ -27,18 +27,22 @@ model Church {
 }
 
 model User {
-  id              String     @id @default(uuid()) @db.Uuid
-  churchId        String     @map("church_id") @db.Uuid
-  username        String
-  passwordHash    String?    @map("password_hash")
-  authVersion     Int        @default(0) @map("auth_version")
-  active          Boolean    @default(true)
-  church          Church     @relation(fields: [churchId], references: [id], onDelete: Restrict)
-  roles           UserRole[]
-  sessions        Session[]
-  totpSecret      String?    @map("totp_secret")
-  totpEnabled     Boolean    @default(false) @map("totp_enabled")
-  totpLastCounter Int        @default(-1) @map("totp_last_counter")
+  careRecords      CareRecord[]
+  newcomerJourneys NewcomerJourney[]
+  scopeMode        String            @default("NONE") @map("scope_mode")
+  memberId         String?           @map("member_id") @db.Uuid
+  id               String            @id @default(uuid()) @db.Uuid
+  churchId         String            @map("church_id") @db.Uuid
+  username         String
+  passwordHash     String?           @map("password_hash")
+  authVersion      Int               @default(0) @map("auth_version")
+  active           Boolean           @default(true)
+  church           Church            @relation(fields: [churchId], references: [id], onDelete: Restrict)
+  roles            UserRole[]
+  sessions         Session[]
+  totpSecret       String?           @map("totp_secret")
+  totpEnabled      Boolean           @default(false) @map("totp_enabled")
+  totpLastCounter  Int               @default(-1) @map("totp_last_counter")
 
   @@unique([churchId, id])
   @@unique([churchId, username])
@@ -137,17 +141,22 @@ model MemberStatus {
 }
 
 model Member {
-  id              String   @id @default(uuid()) @db.Uuid
-  churchId        String   @map("church_id") @db.Uuid
-  memberNumber    String   @map("member_number")
-  name            String
-  normalizedName  String   @map("normalized_name")
-  phone           String?
-  normalizedPhone String?  @map("normalized_phone")
-  address         String?
-  registeredOn    DateTime @map("registered_on") @db.Date
-  status          String
-  version         Int      @default(1)
+  careRecords             CareRecord[]
+  newcomerJourneys        NewcomerJourney[]
+  attendanceRecords       AttendanceRecord[]
+  organizationMemberships OrganizationMembership[]
+  householdMemberships    HouseholdMembership[]
+  id                      String                   @id @default(uuid()) @db.Uuid
+  churchId                String                   @map("church_id") @db.Uuid
+  memberNumber            String                   @map("member_number")
+  name                    String
+  normalizedName          String                   @map("normalized_name")
+  phone                   String?
+  normalizedPhone         String?                  @map("normalized_phone")
+  address                 String?
+  registeredOn            DateTime                 @map("registered_on") @db.Date
+  status                  String
+  version                 Int                      @default(1)
 
   @@unique([churchId, id])
   @@unique([churchId, memberNumber])
@@ -172,18 +181,22 @@ model MemberStatusHistory {
 }
 
 model Household {
-  id         String    @id @default(uuid()) @db.Uuid
-  churchId   String    @map("church_id") @db.Uuid
-  name       String
-  phone      String?
-  address    String?
-  archivedAt DateTime? @map("archived_at")
+  careRecords CareRecord[]
+  memberships HouseholdMembership[]
+  id          String                @id @default(uuid()) @db.Uuid
+  churchId    String                @map("church_id") @db.Uuid
+  name        String
+  phone       String?
+  address     String?
+  archivedAt  DateTime?             @map("archived_at")
 
   @@unique([churchId, id])
   @@map("household")
 }
 
 model HouseholdMembership {
+  member         Member    @relation(fields: [churchId, memberId], references: [churchId, id])
+  household      Household @relation(fields: [churchId, householdId], references: [churchId, id])
   id             String    @id @default(uuid()) @db.Uuid
   churchId       String    @map("church_id") @db.Uuid
   householdId    String    @map("household_id") @db.Uuid
@@ -220,6 +233,7 @@ model Organization {
 }
 
 model OrganizationMembership {
+  member         Member    @relation(fields: [churchId, memberId], references: [churchId, id])
   id             String    @id @default(uuid()) @db.Uuid
   churchId       String    @map("church_id") @db.Uuid
   organizationId String    @map("organization_id") @db.Uuid
@@ -271,4 +285,211 @@ model MemberRelation {
 
   @@index([churchId, memberId])
   @@map("member_relation")
+}
+
+model UserScope {
+  churchId       String  @map("church_id") @db.Uuid
+  userId         String  @map("user_id") @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  descendants    Boolean @default(false)
+
+  @@id([churchId, userId, organizationId])
+  @@map("user_scope")
+}
+
+model MemberImport {
+  id        String    @id @default(uuid()) @db.Uuid
+  churchId  String    @map("church_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  digest    String
+  rows      Json
+  appliedAt DateTime? @map("applied_at")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@unique([churchId, userId, digest])
+  @@map("member_import")
+}
+
+model MemberExport {
+  id             String    @id @default(uuid()) @db.Uuid
+  churchId       String    @map("church_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  query          String
+  organizationId String?   @map("organization_id") @db.Uuid
+  expiresAt      DateTime  @map("expires_at")
+  consumedAt     DateTime? @map("consumed_at")
+
+  @@map("member_export")
+}
+
+model Gathering {
+  id             String             @id @default(uuid()) @db.Uuid
+  churchId       String             @map("church_id") @db.Uuid
+  name           String
+  organizationId String?            @map("organization_id") @db.Uuid
+  schedule       String
+  active         Boolean            @default(true)
+  sessions       GatheringSession[]
+
+  @@unique([churchId, id])
+  @@map("gathering")
+}
+
+model GatheringSession {
+  id          String             @id @default(uuid()) @db.Uuid
+  churchId    String             @map("church_id") @db.Uuid
+  gatheringId String             @map("gathering_id") @db.Uuid
+  startsAt    DateTime           @map("starts_at")
+  gathering   Gathering          @relation(fields: [churchId, gatheringId], references: [churchId, id])
+  records     AttendanceRecord[]
+
+  @@unique([churchId, id])
+  @@unique([churchId, gatheringId, startsAt])
+  @@index([churchId, startsAt])
+  @@map("gathering_session")
+}
+
+model AttendanceRecord {
+  id        String           @id @default(uuid()) @db.Uuid
+  churchId  String           @map("church_id") @db.Uuid
+  sessionId String           @map("session_id") @db.Uuid
+  memberId  String           @map("member_id") @db.Uuid
+  status    String
+  source    String
+  version   Int              @default(1)
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  updatedBy String           @map("updated_by") @db.Uuid
+  member    Member           @relation(fields: [churchId, memberId], references: [churchId, id])
+  session   GatheringSession @relation(fields: [churchId, sessionId], references: [churchId, id])
+
+  @@unique([churchId, id])
+  @@unique([churchId, sessionId, memberId])
+  @@index([churchId, memberId])
+  @@map("attendance_record")
+}
+
+model AttendanceChange {
+  id         String   @id @default(uuid()) @db.Uuid
+  churchId   String   @map("church_id") @db.Uuid
+  recordId   String   @map("record_id") @db.Uuid
+  fromStatus String?  @map("from_status")
+  toStatus   String   @map("to_status")
+  source     String
+  actorId    String   @map("actor_id") @db.Uuid
+  version    Int
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([recordId, version])
+  @@map("attendance_change")
+}
+
+model NewcomerStage {
+  id        String            @id @default(uuid()) @db.Uuid
+  churchId  String            @map("church_id") @db.Uuid
+  name      String
+  sortOrder Int               @map("sort_order")
+  terminal  Boolean
+  active    Boolean
+  journeys  NewcomerJourney[]
+
+  @@unique([churchId, id])
+  @@unique([churchId, name])
+  @@map("newcomer_stage")
+}
+
+model NewcomerJourney {
+  id          String        @id @default(uuid()) @db.Uuid
+  churchId    String        @map("church_id") @db.Uuid
+  memberId    String        @map("member_id") @db.Uuid
+  stageId     String        @map("stage_id") @db.Uuid
+  assigneeId  String        @map("assignee_id") @db.Uuid
+  dueOn       DateTime?     @map("due_on") @db.Date
+  completedAt DateTime?     @map("completed_at")
+  version     Int           @default(1)
+  member      Member        @relation(fields: [churchId, memberId], references: [churchId, id])
+  stage       NewcomerStage @relation(fields: [churchId, stageId], references: [churchId, id])
+  assignee    User          @relation(fields: [churchId, assigneeId], references: [churchId, id])
+
+  @@unique([churchId, id])
+  @@unique([churchId, memberId])
+  @@index([churchId, completedAt, dueOn])
+  @@map("newcomer_journey")
+}
+
+model NewcomerChange {
+  id         String    @id @default(uuid()) @db.Uuid
+  churchId   String    @map("church_id") @db.Uuid
+  journeyId  String    @map("journey_id") @db.Uuid
+  fromStage  String?   @map("from_stage")
+  toStage    String    @map("to_stage")
+  assigneeId String    @map("assignee_id") @db.Uuid
+  dueOn      DateTime? @map("due_on") @db.Date
+  actorId    String    @map("actor_id") @db.Uuid
+  version    Int
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@unique([journeyId, version])
+  @@map("newcomer_change")
+}
+
+model CareRecord {
+  id          String     @id @default(uuid()) @db.Uuid
+  churchId    String     @map("church_id") @db.Uuid
+  memberId    String?    @map("member_id") @db.Uuid
+  householdId String?    @map("household_id") @db.Uuid
+  assigneeId  String     @map("assignee_id") @db.Uuid
+  kind        String
+  occurredAt  DateTime   @map("occurred_at")
+  followUpOn  DateTime?  @map("follow_up_on") @db.Date
+  completedAt DateTime?  @map("completed_at")
+  version     Int        @default(1)
+  member      Member?    @relation(fields: [churchId, memberId], references: [churchId, id])
+  household   Household? @relation(fields: [churchId, householdId], references: [churchId, id])
+  assignee    User       @relation(fields: [churchId, assigneeId], references: [churchId, id])
+
+  @@unique([churchId, id])
+  @@index([churchId, completedAt, followUpOn])
+  @@map("care_record")
+}
+
+model CareChange {
+  id          String    @id @default(uuid()) @db.Uuid
+  churchId    String    @map("church_id") @db.Uuid
+  recordId    String    @map("record_id") @db.Uuid
+  assigneeId  String    @map("assignee_id") @db.Uuid
+  followUpOn  DateTime? @map("follow_up_on") @db.Date
+  completedAt DateTime? @map("completed_at")
+  actorId     String    @map("actor_id") @db.Uuid
+  version     Int
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([recordId, version])
+  @@map("care_change")
+}
+
+model CarePolicy {
+  churchId      String   @id @map("church_id") @db.Uuid
+  enabled       Boolean  @default(false)
+  retentionDays Int      @map("retention_days")
+  reference     String
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("care_policy")
+}
+
+model CareNote {
+  id         String    @id @default(uuid()) @db.Uuid
+  churchId   String    @map("church_id") @db.Uuid
+  recordId   String    @map("record_id") @db.Uuid
+  authorId   String    @map("author_id") @db.Uuid
+  visibility String
+  roleId     String?   @map("role_id") @db.Uuid
+  ciphertext String?
+  expiresAt  DateTime  @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  purgedAt   DateTime? @map("purged_at")
+
+  @@index([expiresAt])
+  @@map("care_note")
 }

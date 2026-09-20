@@ -1,3 +1,4 @@
+import { DataScopeService } from '../application/data-scope.service';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   Controller,
@@ -52,12 +53,14 @@ export class RolesDto {
 @Permission('identity.manage')
 export class AdminController {
   constructor(
+    @Inject(DataScopeService) private readonly scope: DataScopeService,
     @Inject(PrismaService) private readonly db: PrismaService,
     @Inject(AccessService) private readonly access: AccessService,
     @Inject(AuditService) private readonly audit: AuditService,
   ) {}
-  private check(r: AuthRequest, c: string, write = false) {
+  private async check(r: AuthRequest, c: string, write = false) {
     this.access.require(r.actor, c, 'identity.manage');
+    await this.scope.requireFull(r.actor);
     if (write && Date.now() - (r.actor.authenticatedAt ?? 0) > 15 * 60000)
       throw new UnauthorizedException({
         code: 'REAUTHENTICATION_REQUIRED',
@@ -65,7 +68,7 @@ export class AdminController {
       });
   }
   @Get() async list(@Req() r: AuthRequest, @Param('churchId', ParseUUIDPipe) c: string) {
-    this.check(r, c);
+    await this.check(r, c);
     return {
       users: await this.db.user.findMany({
         where: { churchId: c },
@@ -73,6 +76,8 @@ export class AdminController {
           id: true,
           username: true,
           active: true,
+          scopeMode: true,
+          memberId: true,
           totpEnabled: true,
           roles: { select: { roleId: true } },
         },
@@ -91,7 +96,7 @@ export class AdminController {
     @Param('churchId', ParseUUIDPipe) c: string,
     @Body(UserDto) d: UserDto,
   ) {
-    this.check(r, c, true);
+    await this.check(r, c, true);
     const hash = await hashPassword(d.password);
     return this.db.$transaction(async (tx) => {
       const u = await tx.user.create({
@@ -106,7 +111,7 @@ export class AdminController {
     @Param('churchId', ParseUUIDPipe) c: string,
     @Body(RoleDto) d: RoleDto,
   ) {
-    this.check(r, c, true);
+    await this.check(r, c, true);
     if (d.permissions.some((x) => !r.actor.permissions.includes(x)))
       throw new BadRequestException({
         code: 'UNGRANTABLE_PERMISSION',
@@ -132,7 +137,7 @@ export class AdminController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(RolesDto) d: RolesDto,
   ) {
-    this.check(r, c, true);
+    await this.check(r, c, true);
     if (id === r.actor.userId)
       throw new BadRequestException({
         code: 'SELF_ROLE_CHANGE_DENIED',

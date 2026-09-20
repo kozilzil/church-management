@@ -135,7 +135,7 @@ church-management/
 - [x] PostgreSQL Compose와 Prisma 최초 migration 구성
 - [x] 실행 가능한 production Compose와 `server-up.sh`
 - [x] 교적 Core 구현
-- [ ] 출석·심방 구현
+- [x] 조직별 범위, CSV 이전, 출석·새가족·심방 구현 (민감 메모는 정책 설정 후 활성화)
 - [ ] 헌금·회계 구현
 
 ## 라이선스
@@ -170,3 +170,7 @@ MFA 등록에는 루트 `.env`의 `MFA_ENCRYPTION_KEY`(64자리 무작위 hex)�
 
 `pnpm test:integration`은 임시 DB를 생성할 수 있는 **테스트 전용** PostgreSQL 계정으로 실행합니다.
 운영 DB 계정으로 실행하지 않습니다.
+
+## 교적 운영
+
+[Phase 2 사용 흐름](docs/tasks/phase-2-operations.md)과 [접근·보존 정책](docs/decisions/ADR-006-operations-scope.md)을 참고하세요.
