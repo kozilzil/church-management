@@ -1,3 +1,4 @@
+import { financePermissions } from '../domain/finance-permissions';
 import { DataScopeService } from '../application/data-scope.service';
 import { ApiProperty } from '@nestjs/swagger';
 import {
@@ -35,7 +36,7 @@ export class RoleDto {
   name!: string;
   @ApiProperty({ type: [String], required: true })
   @IsArray()
-  @ArrayMaxSize(30)
+  @ArrayMaxSize(60)
   @Matches(/^[a-z.]{1,60}$/, { each: true })
   permissions!: string[];
 }
@@ -58,6 +59,14 @@ export class AdminController {
     @Inject(AccessService) private readonly access: AccessService,
     @Inject(AuditService) private readonly audit: AuditService,
   ) {}
+  private grantable(r: AuthRequest) {
+    return [
+      ...new Set([
+        ...r.actor.permissions,
+        ...(r.actor.permissions.includes('finance.manage') ? financePermissions : []),
+      ]),
+    ];
+  }
   private async check(r: AuthRequest, c: string, write = false) {
     this.access.require(r.actor, c, 'identity.manage');
     await this.scope.requireFull(r.actor);
@@ -88,7 +97,7 @@ export class AdminController {
         select: { id: true, name: true, permissions: { select: { permissionCode: true } } },
         take: 100,
       }),
-      grantablePermissions: r.actor.permissions,
+      grantablePermissions: this.grantable(r),
     };
   }
   @Post('users') async user(
@@ -112,7 +121,7 @@ export class AdminController {
     @Body(RoleDto) d: RoleDto,
   ) {
     await this.check(r, c, true);
-    if (d.permissions.some((x) => !r.actor.permissions.includes(x)))
+    if (d.permissions.some((x) => !this.grantable(r).includes(x)))
       throw new BadRequestException({
         code: 'UNGRANTABLE_PERMISSION',
         message: '보유한 권한만 부여할 수 있습니다.',
@@ -151,7 +160,7 @@ export class AdminController {
       if (
         roles.length !== new Set(d.roleIds).size ||
         roles.some((role) =>
-          role.permissions.some((p) => !r.actor.permissions.includes(p.permissionCode)),
+          role.permissions.some((p) => !this.grantable(r).includes(p.permissionCode)),
         )
       )
         throw new BadRequestException({

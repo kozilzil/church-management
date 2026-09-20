@@ -41,7 +41,14 @@ export class AccessGuard implements CanActivate {
     request.actor = actor;
     if (
       process.env.NODE_ENV === 'production' &&
-      actor.permissions.includes('identity.manage') &&
+      [
+        'identity.manage',
+        'finance.manage',
+        'expense.approve',
+        'expense.pay',
+        'finance.close',
+        'finance.reverse',
+      ].some((p) => actor.permissions.includes(p)) &&
       !actor.mfaVerified &&
       !request.path.startsWith('/api/v1/auth/')
     ) {

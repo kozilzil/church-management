@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/modules/identity/infrastructure/password';
 const db = new PrismaClient();
 export const permissions = [
+  'finance.manage',
   'session.read',
   'care.read',
   'care.write',

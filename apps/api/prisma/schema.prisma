@@ -493,3 +493,187 @@ model CareNote {
   @@index([expiresAt])
   @@map("care_note")
 }
+
+model FinanceAccount {
+  id       String @id @default(uuid()) @db.Uuid
+  churchId String @map("church_id") @db.Uuid
+  code     String
+  name     String
+  kind     String
+
+  @@unique([churchId, id])
+  @@unique([churchId, code])
+  @@map("finance_account")
+}
+
+model FinanceFund {
+  id       String @id @default(uuid()) @db.Uuid
+  churchId String @map("church_id") @db.Uuid
+  name     String
+
+  @@unique([churchId, id])
+  @@unique([churchId, name])
+  @@map("finance_fund")
+}
+
+model FinancePeriod {
+  id       String    @id @default(uuid()) @db.Uuid
+  churchId String    @map("church_id") @db.Uuid
+  name     String
+  startsOn DateTime  @map("starts_on") @db.Date
+  endsOn   DateTime  @map("ends_on") @db.Date
+  closedAt DateTime? @map("closed_at") @db.Timestamptz
+
+  @@unique([churchId, id])
+  @@map("finance_period")
+}
+
+model ExpenseRequest {
+  currentApproverId String?             @map("current_approver_id") @db.Uuid
+  id                String              @id @default(uuid()) @db.Uuid
+  churchId          String              @map("church_id") @db.Uuid
+  requesterId       String              @map("requester_id") @db.Uuid
+  title             String
+  purpose           String
+  payee             String
+  amount            Decimal             @db.Decimal(15, 0)
+  accountId         String              @map("account_id") @db.Uuid
+  fundId            String              @map("fund_id") @db.Uuid
+  evidenceReference String              @default("") @map("evidence_reference")
+  approverIds       String[]            @map("approver_ids") @db.Uuid
+  state             String              @default("DRAFT")
+  round             Int                 @default(0)
+  version           Int                 @default(1)
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  submissions       ExpenseSubmission[]
+
+  @@unique([churchId, id])
+  @@index([churchId, state, id])
+  @@map("expense_request")
+}
+
+model ExpenseSubmission {
+  id                String            @id @default(uuid()) @db.Uuid
+  churchId          String            @map("church_id") @db.Uuid
+  requestId         String            @map("request_id") @db.Uuid
+  round             Int
+  title             String
+  purpose           String
+  payee             String
+  amount            Decimal           @db.Decimal(15, 0)
+  accountId         String            @map("account_id") @db.Uuid
+  fundId            String            @map("fund_id") @db.Uuid
+  evidenceReference String            @map("evidence_reference")
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  request           ExpenseRequest    @relation(fields: [churchId, requestId], references: [churchId, id])
+  approvals         ExpenseApproval[]
+
+  @@unique([churchId, id])
+  @@unique([requestId, round])
+  @@map("expense_submission")
+}
+
+model ExpenseApproval {
+  id           String            @id @default(uuid()) @db.Uuid
+  churchId     String            @map("church_id") @db.Uuid
+  submissionId String            @map("submission_id") @db.Uuid
+  position     Int
+  userId       String            @map("user_id") @db.Uuid
+  username     String
+  decision     String            @default("PENDING")
+  reason       String            @default("")
+  decidedAt    DateTime?         @map("decided_at") @db.Timestamptz
+  submission   ExpenseSubmission @relation(fields: [churchId, submissionId], references: [churchId, id])
+
+  @@unique([submissionId, position])
+  @@unique([submissionId, userId])
+  @@map("expense_approval")
+}
+
+model ExpenseAttachment {
+  id         String    @id @default(uuid()) @db.Uuid
+  churchId   String    @map("church_id") @db.Uuid
+  requestId  String    @map("request_id") @db.Uuid
+  uploadedBy String    @map("uploaded_by") @db.Uuid
+  filename   String
+  mime       String
+  size       Int
+  sha256     String
+  removedAt  DateTime? @map("removed_at") @db.Timestamptz
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([churchId, id])
+  @@index([requestId])
+  @@map("expense_attachment")
+}
+
+model ExpenseSubmissionAttachment {
+  churchId     String @map("church_id") @db.Uuid
+  submissionId String @map("submission_id") @db.Uuid
+  attachmentId String @map("attachment_id") @db.Uuid
+
+  @@id([submissionId, attachmentId])
+  @@map("expense_submission_attachment")
+}
+
+model ExpenseEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  churchId  String   @map("church_id") @db.Uuid
+  requestId String   @map("request_id") @db.Uuid
+  actorId   String   @map("actor_id") @db.Uuid
+  action    String
+  reason    String   @default("")
+  version   Int
+  round     Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([requestId, version])
+  @@map("expense_event")
+}
+
+model ExpensePayment {
+  id        String   @id @default(uuid()) @db.Uuid
+  churchId  String   @map("church_id") @db.Uuid
+  requestId String   @unique @map("request_id") @db.Uuid
+  paidBy    String   @map("paid_by") @db.Uuid
+  paidOn    DateTime @map("paid_on") @db.Date
+  method    String
+  reference String
+  amount    Decimal  @db.Decimal(15, 0)
+  journalId String   @unique @map("journal_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([churchId, reference])
+  @@map("expense_payment")
+}
+
+model JournalEntry {
+  id          String        @id @default(uuid()) @db.Uuid
+  churchId    String        @map("church_id") @db.Uuid
+  periodId    String        @map("period_id") @db.Uuid
+  postedOn    DateTime      @map("posted_on") @db.Date
+  postedBy    String        @map("posted_by") @db.Uuid
+  description String
+  reversalOf  String?       @unique @map("reversal_of") @db.Uuid
+  createdXid  BigInt        @default(dbgenerated("txid_current()")) @map("created_xid")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  lines       JournalLine[]
+
+  @@unique([churchId, id])
+  @@index([churchId, postedOn, id])
+  @@map("journal_entry")
+}
+
+model JournalLine {
+  id        String       @id @default(uuid()) @db.Uuid
+  churchId  String       @map("church_id") @db.Uuid
+  journalId String       @map("journal_id") @db.Uuid
+  accountId String       @map("account_id") @db.Uuid
+  fundId    String       @map("fund_id") @db.Uuid
+  debit     Decimal      @default(0) @db.Decimal(15, 0)
+  credit    Decimal      @default(0) @db.Decimal(15, 0)
+  entry     JournalEntry @relation(fields: [churchId, journalId], references: [churchId, id])
+
+  @@map("journal_line")
+}

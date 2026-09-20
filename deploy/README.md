@@ -61,3 +61,27 @@ DB owner 계정을 사용한다. 배포 시 runtime 권한을 갱신하며 감�
 앱 기동 시와 매시간 만료 메모 암호문과 임시 이전 자료를 정리한다. 실패는 본문 없이 서버 로그에 기록한다.
 수동 메모 파기는 `./deploy/purge-care-notes.sh` 또는 개발 환경 `pnpm care:purge`를 사용한다.
 운영 DB role은 attendance_change/newcomer_change/care_change의 UPDATE/DELETE와 care_note의 DELETE 권한이 없다.
+
+## Phase 3A 지출 결재 업그레이드
+
+013 migration은 지출 요청·제출본·결재선·증빙·지급과 계정·기금·기간·불변 원장을 만든다.
+기존 identity.manage 역할과 신규 bootstrap 관리자에는 finance.manage만 추가한다.
+재정 상세·승인·지급 권한을 시스템 관리자에게 자동으로 부여하지 않는다.
+
+최초 설정 순서:
+
+1. 재정 설정에서 비용/자산 계정, 기금, 회계기간을 만든다. 계정·기금의 코드/이름은 게시 이력 보호를 위해 이 버전에서는 생성만 지원한다.
+2. 계정·권한에서 재정 역할을 만들고 다른 담당 사용자에게 지정한다. 재정은 교적 데이터 범위와 별도로 업무 참여/재정 권한을 적용한다.
+3. 요청자: expense.read + expense.write. 결재자: expense.read + expense.approve.
+4. 지급자: expense.read + expense.pay. 감사/회계: expense.read + finance.readall, 필요 시 finance.close/finance.reverse를 별도 부여한다.
+5. 요청자·결재자·지급자는 서로 다른 사용자다. 운영의 결재/지급/설정/마감/역분개 담당자는 MFA를 등록하고 다시 로그인한다.
+
+증빙 파일은 UPLOAD_DIR=/app/uploads 하위 expenses 디렉터리에 UUID 키로 저장한다.
+기존 uploads volume 및 backup/restore 절차에 포함되며 공개 정적 경로가 없다.
+기본 개발 경로는 apps/api 실행 기준 ../../.tmp/uploads이며 UPLOAD_DIR로 재정의할 수 있다.
+파일을 DB 백업과 함께 보관하고, 만료 시 자동 삭제하지 않으므로 실제 증빙 보존·파기 운영 정책을 별도로 관리한다.
+JPEG/PNG/PDF 시그니처·크기 검사와 권한 다운로드를 제공하며 악성코드 검사 엔진은 아직 포함하지 않는다.
+게이트웨이는 multipart 여유를 포함해 요청 본문을 11 MiB로 제한하고 API는 파일당 10 MiB, 현재 증빙 10개를 제한한다.
+
+업그레이드 시 불변 재정·지급·제출본 테이블의 UPDATE/DELETE와 나머지 재정 기록 DELETE 권한을 runtime role에서 제거한다.
+회계 마감은 재개하지 않는다. 역분개는 장부 정정이며 실제 송금 취소나 재지급을 수행하지 않는다.
