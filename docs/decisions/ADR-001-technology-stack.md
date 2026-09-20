@@ -16,7 +16,7 @@ transaction을 안전하게 구현하며, 향후 운영자가 유지보수하기
 - Database: PostgreSQL
 - ORM/migration: Prisma
 - API contract: OpenAPI
-- Local infrastructure: Docker Compose
+- Local and production infrastructure: Docker Compose
 - CI: lint, typecheck, unit, integration, build 순서의 GitHub Actions
 
 정확한 dependency version은 Phase 0 구현 시 당시 지원되는 안정 버전을 lockfile로 고정한다.

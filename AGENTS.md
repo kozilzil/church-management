@@ -49,6 +49,15 @@
 - 내보내기, 대량 조회, 권한 변경, 재정 게시/취소는 감사 로그 대상이다.
 - 비밀값은 환경 변수 또는 secret manager로 주입하고 저장소에 커밋하지 않는다.
 
+## Deployment contract
+
+- 운영 배포는 Docker Compose 기반이며 서버에서 `./deploy/server-up.sh` 한 명령으로 수행한다.
+- script는 image build/pull, DB migration, service start, health 확인을 실패 시 즉시 중단되게 처리한다.
+- 운영자가 container 내부에서 migration 명령을 수동으로 실행해야 하는 설계를 만들지 않는다.
+- DB와 사용자 업로드는 named volume에 보존하고 container 재생성으로 소실되지 않게 한다.
+- 새 runtime dependency 또는 service를 추가하면 production Compose와 배포 문서를 함께 갱신한다.
+- 실제 운영 secret이나 `.env.production`을 커밋하지 않는다.
+
 ## Implementation workflow
 
 각 작업은 다음 순서로 수행한다.
@@ -71,6 +80,7 @@
 - API 계약과 오류 형식이 일관적인가?
 - 새 도메인 규칙이 테스트로 고정됐는가?
 - 관련 문서가 현재 구현과 일치하는가?
+- `./deploy/server-up.sh`를 사용한 clean-server 배포 경로가 유지되는가?
 
 ## Change restrictions
 

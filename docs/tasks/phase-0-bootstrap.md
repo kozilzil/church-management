@@ -73,3 +73,25 @@
 1. PR에서 모든 검사가 실행된다.
 2. 실패한 단계가 명확히 표시된다.
 3. CI가 production secret을 요구하지 않는다.
+
+## P0-006 서버 PC 단일 명령 배포
+
+### 범위
+
+- `deploy/compose.production.yml`
+- `deploy/.env.production.example`
+- `deploy/server-up.sh`
+- gateway, web, api, migration, PostgreSQL service
+- health check, named volume, log rotation, restart policy
+- backup/restore runbook
+
+### Acceptance criteria
+
+1. 새 Linux 서버에서 Docker Engine과 Compose plugin을 설치하고 환경 파일을 한 번 설정한다.
+2. 이후 `./deploy/server-up.sh` 한 명령으로 build/pull, migration, 기동, health 확인이 완료된다.
+3. 같은 명령을 다시 실행해도 데이터가 유지되고 안전하게 업그레이드된다.
+4. migration 실패 시 API 신규 version이 정상 서비스 상태로 표시되지 않는다.
+5. container를 삭제·재생성해도 DB와 업로드 데이터가 named volume에 남는다.
+6. 운영 secret은 Git history, image layer, log에 포함되지 않는다.
+7. `docker compose ... down`은 데이터를 삭제하지 않으며 volume 삭제는 별도 명시적 절차로만 가능하다.
+8. backup 생성과 빈 서버 restore 절차를 실제로 검증한다.

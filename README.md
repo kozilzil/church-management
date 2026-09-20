@@ -39,6 +39,25 @@
 기술 선택의 근거와 변경 절차는
 [ADR-001](docs/decisions/ADR-001-technology-stack.md)을 따릅니다.
 
+## 운영 배포 목표
+
+서버 PC에서는 Docker Engine과 Docker Compose plugin만 설치한 뒤, 최초 환경 설정 후
+다음 한 명령으로 설치·업그레이드·migration·기동을 수행하는 것을 완료 기준으로 삼습니다.
+
+```bash
+./deploy/server-up.sh
+```
+
+스크립트 내부의 표준 실행 방식은 다음 Compose 명령으로 고정합니다.
+
+```bash
+docker compose --env-file deploy/.env.production -f deploy/compose.production.yml up -d --build
+```
+
+아직 애플리케이션 코드가 없으므로 배포 파일은 Phase 0에서 실행 가능한 형태로 구현합니다.
+구체적인 배포 구조와 운영 기준은
+[배포 아키텍처](docs/architecture/deployment.md)를 참조합니다.
+
 ## 예상 저장소 구조
 
 ```text
@@ -52,6 +71,8 @@ church-management/
 │   └── contracts/
 ├── infrastructure/
 │   └── database/
+├── deploy/
+│   └── README.md
 └── docs/
     ├── requirements/
     ├── architecture/
@@ -72,8 +93,10 @@ church-management/
 - [x] 목표와 범위 초안
 - [x] 모듈 경계와 핵심 도메인 모델
 - [x] 보안·데이터베이스·API 원칙
+- [x] 서버 PC 단일 명령 Docker 배포 원칙
 - [x] Phase 0/1 Codex 작업 목록
 - [ ] 실행 가능한 모노레포 부트스트랩
+- [ ] 실행 가능한 production Compose와 `server-up.sh`
 - [ ] 교적 Core 구현
 - [ ] 출석·심방 구현
 - [ ] 헌금·회계 구현

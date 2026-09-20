@@ -50,15 +50,29 @@ flowchart LR
 
 ## 배포 단위
 
-초기 배포 단위는 다음 세 가지다.
+초기 배포 단위는 다음 네 가지다.
 
-1. `web`: 관리자와 사역자용 SPA
-2. `api`: 인증, 업무 API, background worker 진입점
-3. `postgres`: 영속 데이터 저장소
+1. `gateway`: 단일 진입점, 정적 Web 제공과 API reverse proxy
+2. `web`: 관리자와 사역자용 SPA build
+3. `api`: 인증, 업무 API, background worker 진입점
+4. `postgres`: 영속 데이터 저장소
 
 파일 첨부는 로컬 디스크가 아니라 S3 호환 object storage interface를 사용한다.
 개발 환경에서는 호환 로컬 서비스를 사용할 수 있고 운영 환경 구현은 배포 ADR로
 결정한다.
+
+서버 PC 배포는 production Docker Compose로 표준화한다. DB migration은 one-shot
+service가 먼저 성공해야 API가 시작되며, DB와 업로드 파일은 named volume에 보존한다.
+운영자는 최초 `.env.production` 설정 후 `./deploy/server-up.sh`만 실행한다.
+
+```mermaid
+flowchart TD
+    CLIENT["Browser"] --> GATEWAY["Gateway"]
+    GATEWAY --> WEB["Web assets"]
+    GATEWAY --> API["API"]
+    MIGRATE["Migration job"] --> DB[("PostgreSQL volume")]
+    API --> DB
+```
 
 ## Multi-church 준비
 
@@ -77,3 +91,4 @@ DB 변경과 외부 발송의 정합성에는 transactional outbox 도입을 우
 - [데이터베이스](docs/architecture/database.md)
 - [API 설계](docs/architecture/api-design.md)
 - [보안](docs/architecture/security.md)
+- [배포](docs/architecture/deployment.md)
