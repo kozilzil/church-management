@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "dev": "tsx watch src/main.ts",
+    "dev": "node --watch --import tsx src/main.ts",
     "lint": "eslint src test prisma vitest.config.mts",
     "start": "node dist/main.js",
     "test": "vitest run",
@@ -15,7 +15,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:reset": "prisma migrate reset --force",
     "prisma:seed": "tsx prisma/seed.ts",
-    "prisma:validate": "prisma validate"
+    "prisma:validate": "prisma validate",
+    "test:integration": "RUN_DB_TESTS=1 vitest run test/database.integration.spec.ts test/workflows.integration.spec.ts"
   },
   "dependencies": {
     "@church/contracts": "workspace:*",

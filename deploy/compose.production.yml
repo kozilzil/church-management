@@ -1,0 +1,84 @@
+name: ${COMPOSE_PROJECT_NAME:-church-production}
+x-logging: &logging
+  driver: json-file
+  options: { max-size: '10m', max-file: '3' }
+x-api-env: &api-env
+  NODE_ENV: production
+  MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?required}
+  DATABASE_URL: postgresql://church_runtime:${POSTGRES_RUNTIME_PASSWORD:?required}@postgres:5432/${POSTGRES_DB:-church_management}?schema=public
+  CORS_ORIGIN: ${APP_BASE_URL:?required}
+  APP_BASE_URL: ${APP_BASE_URL:?required}
+  COOKIE_SECURE: ${COOKIE_SECURE:-true}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-church_management}
+      POSTGRES_USER: ${POSTGRES_USER:-church_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_RUNTIME_PASSWORD: ${POSTGRES_RUNTIME_PASSWORD:?required}
+      TZ: UTC
+    volumes: [database:/var/lib/postgresql/data]
+    restart: unless-stopped
+    logging: *logging
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  migrate:
+    image: church-api:${APP_VERSION:-local}
+    environment:
+      <<: *api-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-church_app}:${POSTGRES_PASSWORD:?required}@postgres:5432/${POSTGRES_DB:-church_management}?schema=public
+    command: [pnpm, db:deploy]
+    depends_on: { postgres: { condition: service_healthy } }
+    restart: 'no'
+    logging: *logging
+  api:
+    image: church-api:${APP_VERSION:-local}
+    build: { context: .., dockerfile: deploy/Dockerfile, target: api }
+    environment: *api-env
+    volumes: [uploads:/app/uploads]
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+    logging: *logging
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/api/v1/health/readiness').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  web:
+    build: { context: .., dockerfile: deploy/Dockerfile, target: web }
+    restart: unless-stopped
+    logging: *logging
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1/]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  gateway:
+    build: { context: .., dockerfile: deploy/Dockerfile, target: gateway }
+    ports: ['${APP_BIND_ADDRESS:-127.0.0.1}:${APP_HTTP_PORT:-8080}:80']
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_healthy }
+    restart: unless-stopped
+    logging: *logging
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1/api/v1/health/readiness]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+volumes:
+  database:
+  uploads:

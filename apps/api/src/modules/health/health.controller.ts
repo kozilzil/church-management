@@ -1,3 +1,4 @@
+import { Public } from '../identity/interface/access.guard';
 import { Controller, Get, HttpStatus, Inject, Res } from '@nestjs/common';
 import {
   ApiOkResponse,
@@ -11,6 +12,7 @@ import type { Response } from 'express';
 import { HealthService } from './health.service';
 
 @ApiTags('health')
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(@Inject(HealthService) private readonly healthService: HealthService) {}

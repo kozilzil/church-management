@@ -1,25 +1,50 @@
-# Deployment
+# 단일 서버 배포
 
-이 디렉터리는 Phase 0에서 서버 PC용 production 배포 파일을 구현할 위치입니다.
+1. Docker Engine/Compose를 설치한다.
+2. `.env.production.example`을 `.env.production`으로 복사하고 `chmod 600`을 적용한다.
+3. 서로 다른 URL-safe 32자 이상의 POSTGRES_PASSWORD/POSTGRES_RUNTIME_PASSWORD 및 실제 HTTPS `APP_BASE_URL`을 설정한다.
+4. TLS reverse proxy 뒤에 기본 loopback gateway를 연결한다.
+5. `./deploy/server-up.sh`를 실행한다. 실패하면 즉시 종료하며 성공 전 health를 확인한다.
 
-완성 후 운영자가 실행할 명령은 다음 하나로 고정합니다.
+HTTP 로컬 검증에만 `COOKIE_SECURE=false`와 localhost URL을 사용한다. 운영 인증에는 HTTPS가 필요하다.
+`DEPLOY_ENV_FILE=/absolute/path`로 독립된 테스트 환경을 지정할 수 있다. 다른
+`COMPOSE_PROJECT_NAME`은 별도 DB/업로드 volume을 사용한다. DB port는 외부에 노출하지 않는다.
 
-```bash
-./deploy/server-up.sh
-```
+## 업그레이드와 복구
 
-예정 파일:
+기존 DB가 있으면 배포 전에 backup을 생성한다. `./deploy/backup.sh`는 DB SQL과 업로드 archive를
+`.tmp/backups`에 소유자만 읽을 수 있도록 저장한다. 운영자는 이를 암호화된 외부 저장소에 복제해야 한다.
+업로드 기능은 아직 없으며 volume/backup 경로만 준비되어 있다.
 
-```text
-deploy/
-├── compose.production.yml
-├── .env.production.example
-├── server-up.sh
-├── server-down.sh
-├── backup.sh
-└── RESTORE.md
-```
+빈 서버 복구: 같은 image를 build한 뒤 빈 Compose project를 대상으로
+`./deploy/restore.sh /path/to/backup-base` 실행 후 `./deploy/server-up.sh`를 실행한다.
+restore는 기존 public table이 있으면 덮어쓰기를 거부한다. application image rollback과 DB restore는
+별도 절차이며 migration을 자동 역실행하지 않는다.
 
-현재는 설계 단계이므로 아직 `server-up.sh`를 제공하지 않습니다. 실행되지 않는 placeholder
-script를 넣어 완료된 배포처럼 보이게 하지 않으며, 구현 완료 조건은
-`docs/tasks/phase-0-bootstrap.md`의 P0-006을 따릅니다.
+일상 종료에는 `docker compose --env-file deploy/.env.production -f deploy/compose.production.yml down`을
+사용한다. `down -v`는 데이터를 삭제하므로 일상 운영에 사용하지 않는다.
+
+## 최초 관리자와 MFA 복구
+
+운영 관리자 생성은 API 컨테이너에서 한 번 `pnpm admin:bootstrap`을 실행한다.
+`BOOTSTRAP_CHURCH_NAME`, `BOOTSTRAP_USERNAME`, `BOOTSTRAP_PASSWORD`는 환경 변수로만 전달한다.
+비밀번호를 Compose 파일, image, Git에 포함하지 않는다. 생성된 church ID를 로그인에 사용한다.
+
+MFA 등록 전에 `.env.production`의 `MFA_ENCRYPTION_KEY`를 64자리 무작위 hex로 설정한다.
+이 키는 DB의 암호화된 MFA secret을 복구하는 데 필요하므로 DB backup과 함께 안전하게 보관한다.
+환경 파일 예시의 placeholder를 그대로 사용할 수 없다. 키를 임의 교체하면 기존 MFA를 복호화할 수 없다.
+
+서버 운영자 계정 복구: `RECOVERY_CHURCH_ID`, `RECOVERY_USERNAME`, `RECOVERY_PASSWORD`를
+환경 변수로 주입해 `pnpm admin:recover` 실행. MFA도 잃었다면 `RECOVERY_RESET_MFA=1`을
+추가한다. 이 명령은 세션을 폐기하고 `account.recover.cli` 감사 이벤트를 기록한다.
+웹에서 본인 권한을 확장하거나 인증 없이 관리자 비밀번호를 재설정하는 기능은 제공하지 않는다.
+
+## 자동 검증
+
+`./scripts/verify-deployment.sh`는 일회용 테스트 환경에서 설치·업그레이드·컨테이너 재생성·
+DB/업로드 보존·backup·restore 및 덮어쓰기 거부를 검사한다. 테스트 프로젝트 volume만 제거한다.
+`./scripts/test-deploy-gate.sh`는 실패한 migration 이후 기동이 중단되는지를 검사한다.
+
+운영 API는 `church_runtime`이라는 비소유자 DB role을 사용한다. migration/backup은 별도
+DB owner 계정을 사용한다. 배포 시 runtime 권한을 갱신하며 감사·상태 이력의 UPDATE/DELETE와
+기간 이력의 DELETE 권한을 제거한다. 애플리케이션 계정에는 schema 변경·TRUNCATE 권한을 주지 않는다.

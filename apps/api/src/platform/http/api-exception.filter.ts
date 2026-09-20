@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import {
   ArgumentsHost,
   BadRequestException,
@@ -21,6 +22,22 @@ interface ExceptionBody {
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
+    if (
+      exception instanceof Prisma.PrismaClientKnownRequestError &&
+      ['P2002', 'P2003', 'P2004', 'P2034'].includes(exception.code)
+    )
+      exception = new HttpException(
+        { code: 'DATA_CONFLICT', message: '중복 또는 데이터 관계를 확인하세요.' },
+        409,
+      );
+    if (
+      exception instanceof Prisma.PrismaClientUnknownRequestError &&
+      /23P01|23514/.test(exception.message)
+    )
+      exception = new HttpException(
+        { code: 'DATA_CONFLICT', message: '기간 중복 또는 데이터 무결성 규칙을 확인하세요.' },
+        409,
+      );
     const context = host.switchToHttp();
     const request = context.getRequest<RequestWithId>();
     const response = context.getResponse<Response>();

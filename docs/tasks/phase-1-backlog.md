@@ -1,5 +1,9 @@
 # Phase 1: 교적 Core Backlog
 
+상태: **아래 Core 작업의 API·관리 화면·migration·권한·감사·테스트 구현 완료**
+
+검증 범위와 운영 인계는 [구현 기록](implementation-status.md)을 따른다.
+
 ## 권장 순서
 
 ```mermaid

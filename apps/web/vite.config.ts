@@ -4,6 +4,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   plugins: [react()],
   server: {
+    watch: process.env.CHOKIDAR_USEPOLLING === 'true' ? { usePolling: true } : {},
     port: Number.parseInt(process.env.WEB_PORT ?? '5173', 10),
     proxy: {
       '/api': {
