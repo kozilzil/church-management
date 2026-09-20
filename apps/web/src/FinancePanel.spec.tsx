@@ -12,6 +12,9 @@ const catalog = {
 };
 const detail = {
   id: 'request',
+  budgetYear: 2020,
+  budgetCheck: { year: 2020, mode: 'WARN', status: 'EXCEEDED', budgetVersion: 1, policyVersion: 0 },
+  budgetChecks: [],
   title: '교육 물품',
   purpose: '가상 목적',
   payee: '가상 상점',
@@ -76,11 +79,13 @@ describe('Requester-defined expense flow', () => {
         ([, opts]) => (opts as RequestInit | undefined)?.method === 'PATCH',
       );
       expect(hit).toBeDefined();
+      expect(JSON.parse(String((hit![1] as RequestInit).body)).budgetYear).toBe(2020);
       expect(JSON.parse(String((hit![1] as RequestInit).body)).approverIds).toEqual([
         'second',
         'first',
       ]);
     });
+    expect(screen.getByText('예산 확인: 예약액 포함 예산 초과')).toBeInTheDocument();
     expect(screen.getByLabelText('사진·영수증·PDF 첨부 (10 MiB 이하)')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: '상신' })).toBeDisabled());
     fireEvent.click(screen.getByRole('checkbox'));

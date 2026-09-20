@@ -5,6 +5,8 @@ export interface BudgetAmounts {
   executionRate: string | null;
 }
 export interface BudgetRow extends BudgetAmounts {
+  committed: string;
+  available: string | null;
   accountId: string;
   code: string;
   name: string;
@@ -34,4 +36,40 @@ export interface BudgetRevisionView {
 export interface BudgetHistory {
   items: BudgetRevisionView[];
   nextBeforeVersion: number | null;
+}
+
+export interface BudgetChangeView {
+  id: string;
+  year: number;
+  accountId: string;
+  fundId: string;
+  baseVersion: number;
+  amount: string;
+  reason: string;
+  requestedBy: string;
+  requester: string;
+  createdAt: string;
+  decision: null | {
+    decision: 'APPROVED' | 'REJECTED' | 'CANCELLED';
+    reason: string;
+    decidedBy: string;
+    decider: string;
+    createdAt: string;
+  };
+}
+export interface BudgetChanges {
+  items: BudgetChangeView[];
+  nextCursor: string | null;
+}
+export interface BudgetControlPolicy {
+  mode: 'WARN' | 'BLOCK';
+  version: number;
+  legacyPending: number;
+}
+export interface ExpenseBudgetStatus {
+  year: number | null;
+  mode: 'WARN' | 'BLOCK';
+  status: 'WITHIN' | 'UNBUDGETED' | 'EXCEEDED' | 'LEGACY_YEAR';
+  budgetVersion: number;
+  policyVersion: number;
 }

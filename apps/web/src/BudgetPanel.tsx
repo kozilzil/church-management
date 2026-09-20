@@ -1,3 +1,4 @@
+import { BudgetApprovalList } from './BudgetApprovalList';
 import { useEffect, useState, type FormEvent } from 'react';
 import type { AnnualBudget, BudgetRow, BudgetHistory } from '@church/contracts';
 import { api } from './api';
@@ -59,8 +60,8 @@ function BudgetEditor({
     <form className="form" aria-label="예산 편성" onSubmit={(e) => void submit(e)}>
       <h4>{report.year}년 예산 편성·변경</h4>
       <p>
-        저장하면 연간 편성액에 즉시 반영됩니다. 기존 기록은 보존되며, 지급이나 결재를 자동으로
-        차단하지 않습니다.
+        승인을 요청하면 다른 예산 승인 담당자의 승인 후 연간 편성액에 반영됩니다. 기존 기록은
+        보존됩니다.
       </p>
       <div className="fields">
         <label>
@@ -125,7 +126,7 @@ function BudgetEditor({
         <button
           disabled={busy || !accountId || !fundId || !reason.trim() || amount === existing?.budget}
         >
-          예산 저장
+          예산 승인 요청
         </button>
         <button type="button" className="secondary" disabled={busy} onClick={cancel}>
           편성 취소
@@ -134,7 +135,16 @@ function BudgetEditor({
     </form>
   );
 }
-export function BudgetPanel({ base, permissions }: { base: string; permissions: string[] }) {
+export function BudgetPanel({
+  base,
+  permissions,
+  userId = '',
+}: {
+  base: string;
+  permissions: string[];
+  userId?: string;
+}) {
+  const [refresh, setRefresh] = useState(0);
   const [catalog, setCatalog] = useState<Catalog>({
     timezone: 'Asia/Seoul',
     accounts: [],
@@ -187,6 +197,7 @@ export function BudgetPanel({ base, permissions }: { base: string; permissions: 
     setHistory(null);
     try {
       setReport(await load(Number(year), fundId));
+      setRefresh((v) => v + 1);
     } catch (e) {
       setReport(null);
       setError(String(e));
@@ -206,11 +217,12 @@ export function BudgetPanel({ base, permissions }: { base: string; permissions: 
       setEditor(null);
       setHistory(null);
       setReport(await load(report.year, report.fundId));
-      setMessage('예산을 저장했습니다. 집행률을 새로 계산했습니다.');
+      setRefresh((v) => v + 1);
+      setMessage('예산 승인을 요청했습니다. 현재 편성액은 승인 후 변경됩니다.');
     } catch (e) {
       if (saved) {
         setReport(null);
-        setError('예산은 저장되었습니다. 조회를 다시 실행하세요. ' + String(e));
+        setError('승인 요청은 저장되었습니다. 조회를 다시 실행하세요. ' + String(e));
       } else setError(String(e));
     } finally {
       setBusy(false);
@@ -323,12 +335,13 @@ export function BudgetPanel({ base, permissions }: { base: string; permissions: 
             ))}
           </div>
           <p>
-            예산 초과 {report.overBudgetCount}건 · 미편성 순지출 {report.unbudgetedCount}건. 전체
-            잔여액이 있어도 특정 계정·기금에서 예산을 초과할 수 있습니다.
+            예약 포함 예산 초과 {report.overBudgetCount}건 · 미편성 항목 {report.unbudgetedCount}건.
+            전체 잔여액이 있어도 특정 계정·기금에서 예산을 초과할 수 있습니다.
           </p>
           <p>
-            잔여 예산 = 예산 − 순지출. 역분개는 처리 연도에 차감되어 집행액·집행률이 음수가 될 수
-            있습니다. 집행률은 소수 둘째 자리까지 버림하며 0원·미편성 예산은 계산하지 않습니다.
+            가용 예산 = 잔여 예산 − 결재 중·승인 후 미지급 예약액. 잔여 예산 = 예산 − 순지출.
+            역분개는 처리 연도에 차감되어 집행액·집행률이 음수가 될 수 있습니다. 집행률은 소수 둘째
+            자리까지 버림하며 0원·미편성 예산은 계산하지 않습니다.
           </p>
           {editor && canWrite && (
             <BudgetEditor
@@ -346,11 +359,20 @@ export function BudgetPanel({ base, permissions }: { base: string; permissions: 
               <caption>계정·기금별 예산과 집행</caption>
               <thead>
                 <tr>
-                  {['계정', '기금', '예산', '순지출', '잔여액', '집행률', '상태', '작업'].map(
-                    (x) => (
-                      <th key={x}>{x}</th>
-                    ),
-                  )}
+                  {[
+                    '계정',
+                    '기금',
+                    '예산',
+                    '순지출',
+                    '잔여액',
+                    '미지급 예약',
+                    '가용 예산',
+                    '집행률',
+                    '상태',
+                    '작업',
+                  ].map((x) => (
+                    <th key={x}>{x}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -363,6 +385,18 @@ export function BudgetPanel({ base, permissions }: { base: string; permissions: 
                     <td>{won(row.budget)}</td>
                     <td>{won(row.actual)}</td>
                     <td>{won(row.remaining)}</td>
+                    <td>{won(row.committed)}</td>
+                    <td>
+                      <span
+                        className={
+                          row.available !== null && BigInt(row.available) < 0n
+                            ? 'budget-warning'
+                            : ''
+                        }
+                      >
+                        {won(row.available)}
+                      </span>
+                    </td>
                     <td>{row.executionRate === null ? '—' : row.executionRate + '%'}</td>
                     <td>
                       <span
@@ -403,6 +437,25 @@ export function BudgetPanel({ base, permissions }: { base: string; permissions: 
           {canWrite && (!catalog.accounts.length || !catalog.funds.length) && (
             <p>재정 설정 담당자가 지출 계정과 기금을 먼저 등록해야 합니다.</p>
           )}
+          <BudgetApprovalList
+            key={`${report.year}:${report.fundId}:${refresh}`}
+            base={base}
+            year={report.year}
+            fundId={report.fundId}
+            permissions={permissions}
+            userId={userId}
+            refresh={refresh}
+            onBusy={setBusy}
+            disabled={busy}
+            onApplied={async () => {
+              setReport(await load(report.year, report.fundId));
+              setHistory(null);
+              setEditor(null);
+            }}
+            names={(r) =>
+              `${catalog.accounts.find((x) => x.id === r.accountId)?.name ?? r.accountId} · ${catalog.funds.find((x) => x.id === r.fundId)?.name ?? r.fundId}`
+            }
+          />
           {history && (
             <section aria-label="예산 변경 이력">
               <h4>

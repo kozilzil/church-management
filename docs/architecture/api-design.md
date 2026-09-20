@@ -173,8 +173,16 @@ API는 주민등록번호와 완성된 제출 파일을 수신하지 않는다. 
 - `GET ?year=2026&fundId=UUID`: 연간 집계. fundId 선택. budget.read 필요.
 - `GET history?year=2026&accountId=UUID&fundId=UUID&beforeVersion=31`: 변경 이력 30개씩,
   nextBeforeVersion으로 이전 기록 조회. beforeVersion 선택. budget.read 필요.
-- `POST revisions`: year, accountId, fundId, version, amount, reason. budget.read + budget.write 필요.
-  최초 version=0, 이후 현재 항목 version을 전송한다. amount는 최대 15자리 비음수 정수 문자열이며 reason은 1–300자다.
+- `POST revisions`: year, accountId, fundId, version, amount, reason. budget.read + budget.write 필요. 승인 요청을 만들며 응답은 `{id,state:"PENDING"}`이다.
+- `GET changes?year=2026&fundId=UUID&cursor=UUID`: 승인 요청/결정 이력, 최신 30건 및 nextCursor. budget.read 필요.
+- `POST changes/:id/decision`: decision(APPROVED/REJECTED), reason. budget.read + budget.approve, 작성자와 다른 계정.
+- `POST changes/:id/cancel`: reason. budget.read + budget.write, 작성자만 미처리 요청 취소.
+- `GET control`, `POST control`: finance.manage. POST는 mode(WARN/BLOCK), version, reason. 기본 WARN/version 0.
+- 지출 create/update의 budgetYear는 필수 정수다. 지출 상세 및 성공 상신/승인/지급 응답에 budgetCheck가 포함된다. 상세의 budgetChecks는 최근 30개 확인 이력.
+- 초과/미편성은 BLOCK에서 BUDGET_BLOCKED(409). 모든 처리 단계에서 현재 상태를 재검사한다.
+
+예산 요청의 최초 version=0, 이후 현재 항목 version을 전송한다. amount는 최대 15자리 비음수 정수 문자열이며 reason은 1–300자다.
 
 집계 금액은 정수 문자열, 집행률은 소수 둘째 자리까지 문자열이다. 미편성/0원 예산의 집행률은 null이다.
+행의 committed는 미지급 예약액, available은 잔여액에서 예약액을 뺀 값이다.
 API는 미편성 잔여액 null과 명시적 0원 예산을 구분한다. 충돌은 VERSION_CONFLICT로 반환한다.

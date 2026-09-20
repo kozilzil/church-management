@@ -396,6 +396,7 @@ describe.skipIf(!enabled)('Monthly financial reports', () => {
     }).expect(201);
     const expense = (
       await call('writer', 'post', '/expenses', {
+        budgetYear: 2023,
         title: '합성 지출',
         purpose: '합성 목적',
         payee: '합성 수령인',

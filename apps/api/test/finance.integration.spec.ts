@@ -47,6 +47,7 @@ describe.skipIf(!enabled)('Expense approval and immutable accounting', () => {
     return body ? r.send(body) : r;
   }
   const draft = (extra: object = {}) => ({
+    budgetYear: 2020,
     title: '가상 지출',
     purpose: '통합 테스트용 용품',
     payee: '가상 상점',

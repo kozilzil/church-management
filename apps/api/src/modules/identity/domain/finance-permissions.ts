@@ -19,6 +19,7 @@ export const financePermissions = [
   'finance.report',
   'budget.read',
   'budget.write',
+  'budget.approve',
   'finance.export',
   'finance.close',
   'finance.reverse',

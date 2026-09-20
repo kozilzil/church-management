@@ -1,3 +1,11 @@
+import { BudgetControlService } from '../application/budget-control.service';
+import { BudgetApprovalService } from '../application/budget-approval.service';
+import {
+  BudgetChangesQuery,
+  BudgetDecisionDto,
+  BudgetCancelDto,
+  BudgetPolicyDto,
+} from './budget.dto';
 import { Controller, Get, Post, Inject, Req, Param, ParseUUIDPipe, Header } from '@nestjs/common';
 import { Permission, type AuthRequest } from '../../identity/interface/access.guard';
 import { ValidatedBody as Body, ValidatedQuery as Query } from '../../../platform/http/validated';
@@ -5,7 +13,11 @@ import { BudgetService } from '../application/budget.service';
 import { BudgetQuery, BudgetRevisionDto, BudgetHistoryQuery } from './budget.dto';
 @Controller('churches/:churchId/finance/budgets')
 export class BudgetController {
-  constructor(@Inject(BudgetService) private readonly service: BudgetService) {}
+  constructor(
+    @Inject(BudgetService) private readonly service: BudgetService,
+    @Inject(BudgetApprovalService) private readonly approval: BudgetApprovalService,
+    @Inject(BudgetControlService) private readonly control: BudgetControlService,
+  ) {}
   @Get('definitions')
   @Permission('budget.read')
   @Header('Cache-Control', 'private, no-store')
@@ -41,5 +53,54 @@ export class BudgetController {
     @Body(BudgetRevisionDto) d: BudgetRevisionDto,
   ) {
     return this.service.save(r.actor, c, d);
+  }
+
+  @Get('changes')
+  @Permission('budget.read')
+  @Header('Cache-Control', 'private, no-store')
+  changes(
+    @Req() r: AuthRequest,
+    @Param('churchId', ParseUUIDPipe) c: string,
+    @Query(BudgetChangesQuery) q: BudgetChangesQuery,
+  ) {
+    return this.approval.list(r.actor, c, q);
+  }
+  @Post('changes/:id/decision')
+  @Permission('budget.approve')
+  @Header('Cache-Control', 'private, no-store')
+  decision(
+    @Req() r: AuthRequest,
+    @Param('churchId', ParseUUIDPipe) c: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(BudgetDecisionDto) d: BudgetDecisionDto,
+  ) {
+    return this.approval.decide(r.actor, c, id, d);
+  }
+  @Post('changes/:id/cancel')
+  @Permission('budget.write')
+  @Header('Cache-Control', 'private, no-store')
+  cancel(
+    @Req() r: AuthRequest,
+    @Param('churchId', ParseUUIDPipe) c: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(BudgetCancelDto) d: BudgetCancelDto,
+  ) {
+    return this.approval.decide(r.actor, c, id, d, true);
+  }
+  @Get('control')
+  @Permission('finance.manage')
+  @Header('Cache-Control', 'private, no-store')
+  policy(@Req() r: AuthRequest, @Param('churchId', ParseUUIDPipe) c: string) {
+    return this.control.readPolicy(r.actor, c);
+  }
+  @Post('control')
+  @Permission('finance.manage')
+  @Header('Cache-Control', 'private, no-store')
+  policySave(
+    @Req() r: AuthRequest,
+    @Param('churchId', ParseUUIDPipe) c: string,
+    @Body(BudgetPolicyDto) d: BudgetPolicyDto,
+  ) {
+    return this.control.savePolicy(r.actor, c, d);
   }
 }
