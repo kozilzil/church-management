@@ -23,6 +23,72 @@ export class LedgerService {
     this.p.check(a, c, 'finance.readall');
     return this.catalog(c);
   }
+  async offeringDefinitions(a: Actor, c: string) {
+    this.p.check(a, c, 'offering.read');
+    return this.catalog(c);
+  }
+  async postOffering(
+    a: Actor,
+    c: string,
+    tx: Tx,
+    d: {
+      givenOn: string;
+      amount: number;
+      assetAccountId: string;
+      revenueAccountId: string;
+      fundId: string;
+      offeringId: string;
+    },
+  ) {
+    const { period, date } = await this.p.openPeriod(c, d.givenOn, tx);
+    await this.p.account(c, d.assetAccountId, 'ASSET', tx);
+    await this.p.account(c, d.revenueAccountId, 'REVENUE', tx);
+    const row = await tx.journalEntry.create({
+      data: {
+        churchId: c,
+        periodId: period.id,
+        postedOn: date,
+        postedBy: a.userId,
+        description: '헌금 ' + d.offeringId,
+        lines: {
+          create: [
+            { accountId: d.assetAccountId, fundId: d.fundId, debit: d.amount, credit: 0 },
+            { accountId: d.revenueAccountId, fundId: d.fundId, debit: 0, credit: d.amount },
+          ],
+        },
+      },
+    });
+    return row.id;
+  }
+  async reverseOffering(a: Actor, c: string, tx: Tx, journalId: string, d: ReverseDto) {
+    const original = await tx.journalEntry.findFirst({
+      where: { id: journalId, churchId: c },
+      include: { lines: true },
+    });
+    if (!original) missing();
+    if (await tx.journalEntry.count({ where: { reversalOf: journalId } }))
+      bad('이미 정정된 헌금입니다.');
+    const { period, date } = await this.p.openPeriod(c, d.postedOn, tx);
+    if (date < original.postedOn) bad('원 헌금 이전 날짜로 정정할 수 없습니다.');
+    return tx.journalEntry.create({
+      data: {
+        churchId: c,
+        periodId: period.id,
+        postedOn: date,
+        postedBy: a.userId,
+        description: '헌금 정정',
+        reversalOf: journalId,
+        lines: {
+          create: original.lines.map((l) => ({
+            accountId: l.accountId,
+            fundId: l.fundId,
+            debit: l.credit,
+            credit: l.debit,
+          })),
+        },
+      },
+    });
+  }
   private async catalog(c: string) {
     return {
       accounts: await this.p.db.financeAccount.findMany({
@@ -187,6 +253,8 @@ export class LedgerService {
           include: { lines: true },
         });
         if (!original) missing();
+        if (await tx.offering.count({ where: { churchId: c, journalId: id } }))
+          bad('헌금 화면에서 영수증 여부를 확인한 후 정정하세요.');
         if (original.reversalOf || (await tx.journalEntry.count({ where: { reversalOf: id } })))
           bad('이미 역분개되었거나 역분개 전표입니다.');
         const { period, date } = await this.p.openPeriod(c, d.postedOn, tx);

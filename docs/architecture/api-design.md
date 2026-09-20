@@ -126,3 +126,12 @@ assigneeId를 지원한다. profile/출석/새가족/목양 변경은 해당 ver
 지급은 승인된 전액 1회만 기록하며 회계 분개와 원자적으로 처리한다. 지급 참조는 교회 내 고유하다.
 실제 금융기관 송금 API는 없다. CARD는 즉시 자산에서 출금된 체크카드 결제 기록이며 미지급 신용카드 회계는 후속이다.
 설정·승인·지급·마감·역분개는 최근 15분 인증을 요구한다. 운영의 재정 처리자는 MFA를 확인한다.
+
+## 개별 헌금·영수증
+
+`churches/:churchId/finance/offerings`에서 단건 작성·조회·수정을 제공한다.
+`:id/review`, `:id/post`, `:id/cancel`, `:id/reverse`는 명시적 업무 command다.
+`offering-types`, `donors`, `offering-members`에서 종류·기부자·교인 연결을 관리한다.
+`receipt-issuer`는 발급기관 설정, `receipts/preview`는 발급 전 계산, `receipts` POST는 확정 번호 생성이다.
+`receipts/:id/print` POST는 권한/최근 인증/유효 상태를 재검사하고 출력 감사 이벤트와 스냅샷을 반환한다.
+주민등록번호를 받는 API 필드는 없다. `receipts/:id/cancel`은 별도 취소 기록과 활성 항목 연결 해제다.

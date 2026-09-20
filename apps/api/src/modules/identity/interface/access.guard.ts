@@ -48,6 +48,12 @@ export class AccessGuard implements CanActivate {
         'expense.pay',
         'finance.close',
         'finance.reverse',
+        'offering.review',
+        'offering.post',
+        'offering.reverse',
+        'receipt.issue',
+        'receipt.print',
+        'receipt.cancel',
       ].some((p) => actor.permissions.includes(p)) &&
       !actor.mfaVerified &&
       !request.path.startsWith('/api/v1/auth/')

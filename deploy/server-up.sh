@@ -25,8 +25,8 @@ SELECT format('ALTER ROLE church_runtime PASSWORD %L', :'runtime_password') \gex
 GRANT USAGE ON SCHEMA public TO church_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO church_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO church_runtime;
-REVOKE UPDATE, DELETE ON audit_event, member_status_history, attendance_change, newcomer_change, care_change, finance_account, finance_fund, expense_submission, expense_submission_attachment, expense_event, expense_payment, journal_entry, journal_line FROM church_runtime;
-REVOKE DELETE ON household_membership, organization_membership, position_appointment, member_relation, care_note, finance_period, expense_approval, expense_attachment, expense_request FROM church_runtime;
+REVOKE UPDATE, DELETE ON offering_type, offering_reversal, offering_event, donation_receipt, donation_receipt_item, receipt_cancellation, audit_event, member_status_history, attendance_change, newcomer_change, care_change, finance_account, finance_fund, expense_submission, expense_submission_attachment, expense_event, expense_payment, journal_entry, journal_line FROM church_runtime;
+REVOKE DELETE ON offering, offering_donor, receipt_issuer, household_membership, organization_membership, position_appointment, member_relation, care_note, finance_period, expense_approval, expense_attachment, expense_request FROM church_runtime;
 SQL
 compose up -d --wait --wait-timeout 180 api web gateway
 compose exec -T gateway wget -q -O /dev/null http://127.0.0.1/api/v1/health/readiness
