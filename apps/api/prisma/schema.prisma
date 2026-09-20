@@ -677,3 +677,156 @@ model JournalLine {
 
   @@map("journal_line")
 }
+
+model OfferingType {
+  id               String  @id @default(uuid()) @db.Uuid
+  churchId         String  @map("church_id") @db.Uuid
+  name             String
+  revenueAccountId String  @map("revenue_account_id") @db.Uuid
+  fundId           String  @map("fund_id") @db.Uuid
+  receiptEligible  Boolean @map("receipt_eligible")
+
+  @@unique([churchId, id])
+  @@unique([churchId, name])
+  @@map("offering_type")
+}
+
+model OfferingDonor {
+  id       String  @id @default(uuid()) @db.Uuid
+  churchId String  @map("church_id") @db.Uuid
+  memberId String? @map("member_id") @db.Uuid
+  name     String
+  address  String
+  version  Int     @default(1)
+
+  @@unique([churchId, id])
+  @@unique([churchId, memberId])
+  @@index([churchId, name, id])
+  @@map("offering_donor")
+}
+
+model Offering {
+  id             String   @id @default(uuid()) @db.Uuid
+  churchId       String   @map("church_id") @db.Uuid
+  donorId        String?  @map("donor_id") @db.Uuid
+  typeId         String   @map("type_id") @db.Uuid
+  assetAccountId String   @map("asset_account_id") @db.Uuid
+  givenOn        DateTime @map("given_on") @db.Date
+  amount         Decimal  @db.Decimal(15, 0)
+  reference      String
+  source         String
+  state          String   @default("DRAFT")
+  version        Int      @default(1)
+  createdBy      String   @map("created_by") @db.Uuid
+  editedBy       String   @map("edited_by") @db.Uuid
+  reviewedBy     String?  @map("reviewed_by") @db.Uuid
+  journalId      String?  @unique @map("journal_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([churchId, id])
+  @@unique([churchId, reference])
+  @@index([churchId, donorId, givenOn, id])
+  @@map("offering")
+}
+
+model OfferingReversal {
+  id         String   @id @default(uuid()) @db.Uuid
+  churchId   String   @map("church_id") @db.Uuid
+  offeringId String   @unique @map("offering_id") @db.Uuid
+  journalId  String   @unique @map("journal_id") @db.Uuid
+  reason     String
+  createdBy  String   @map("created_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("offering_reversal")
+}
+
+model OfferingEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  churchId   String   @map("church_id") @db.Uuid
+  offeringId String   @map("offering_id") @db.Uuid
+  actorId    String   @map("actor_id") @db.Uuid
+  action     String
+  reason     String   @default("")
+  version    Int
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([offeringId, version])
+  @@map("offering_event")
+}
+
+model ReceiptIssuer {
+  churchId               String  @id @map("church_id") @db.Uuid
+  name                   String
+  registrationNumber     String  @map("registration_number")
+  address                String
+  representative         String
+  legalBasis             String  @map("legal_basis")
+  qualificationReference String  @map("qualification_reference")
+  electronicRequired     Boolean @map("electronic_required")
+  version                Int     @default(1)
+
+  @@map("receipt_issuer")
+}
+
+model DonationReceipt {
+  id                       String                @id @default(uuid()) @db.Uuid
+  churchId                 String                @map("church_id") @db.Uuid
+  donorId                  String                @map("donor_id") @db.Uuid
+  taxYear                  Int                   @map("tax_year")
+  serialYear               Int                   @map("serial_year")
+  serial                   Int
+  number                   String
+  donorName                String                @map("donor_name")
+  donorAddress             String                @map("donor_address")
+  issuerName               String                @map("issuer_name")
+  issuerRegistrationNumber String                @map("issuer_registration_number")
+  issuerAddress            String                @map("issuer_address")
+  issuerRepresentative     String                @map("issuer_representative")
+  issuerLegalBasis         String                @map("issuer_legal_basis")
+  qualificationReference   String                @map("qualification_reference")
+  totalAmount              Decimal               @map("total_amount") @db.Decimal(18, 0)
+  issuedBy                 String                @map("issued_by") @db.Uuid
+  issuedOn                 DateTime              @map("issued_on") @db.Date
+  createdXid               BigInt                @default(dbgenerated("txid_current()")) @map("created_xid")
+  createdAt                DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  items                    DonationReceiptItem[]
+
+  @@unique([churchId, id])
+  @@unique([churchId, serialYear, serial])
+  @@unique([churchId, number])
+  @@index([churchId, donorId, taxYear, id])
+  @@map("donation_receipt")
+}
+
+model DonationReceiptItem {
+  id         String          @id @default(uuid()) @db.Uuid
+  churchId   String          @map("church_id") @db.Uuid
+  receiptId  String          @map("receipt_id") @db.Uuid
+  offeringId String          @map("offering_id") @db.Uuid
+  givenOn    DateTime        @map("given_on") @db.Date
+  amount     Decimal         @db.Decimal(15, 0)
+  typeName   String          @map("type_name")
+  receipt    DonationReceipt @relation(fields: [churchId, receiptId], references: [churchId, id])
+
+  @@unique([receiptId, offeringId])
+  @@map("donation_receipt_item")
+}
+
+model ReceiptClaim {
+  offeringId String @id @map("offering_id") @db.Uuid
+  churchId   String @map("church_id") @db.Uuid
+  receiptId  String @map("receipt_id") @db.Uuid
+
+  @@map("receipt_claim")
+}
+
+model ReceiptCancellation {
+  receiptId   String   @id @map("receipt_id") @db.Uuid
+  churchId    String   @map("church_id") @db.Uuid
+  reason      String
+  cancelledBy String   @map("cancelled_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("receipt_cancellation")
+}

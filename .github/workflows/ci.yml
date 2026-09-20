@@ -46,6 +46,8 @@ jobs:
           pnpm db:seed
           pnpm db:deploy
           pnpm db:seed
+      - name: Development runtime and OpenAPI bootstrap
+        run: pnpm test:runtime
       - name: Database integration tests
         run: pnpm test:integration
       - name: Build

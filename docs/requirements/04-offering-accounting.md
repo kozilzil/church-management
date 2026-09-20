@@ -41,3 +41,8 @@ DRAFT -> REVIEWED -> POSTED
 2. POSTED 데이터의 update/delete API는 존재하지 않는다.
 3. 정정 후 원거래와 reversal의 연결을 추적할 수 있다.
 4. 회계기간 마감과 권한 검사가 모든 게시 경로에 적용된다.
+
+## 개별 입력 확장
+
+사용자 요청에 따라 개별 헌금을 독립 검수/게시 단위로 지원한다. 배치 생성은 필수가 아니다.
+단건 상태와 영수증 정책은 [07-offerings-receipts.md](07-offerings-receipts.md)와 ADR-008을 따른다.

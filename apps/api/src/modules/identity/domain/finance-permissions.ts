@@ -1,4 +1,13 @@
 export const financePermissions = [
+  'offering.read',
+  'offering.write',
+  'offering.review',
+  'offering.post',
+  'offering.reverse',
+  'receipt.read',
+  'receipt.issue',
+  'receipt.print',
+  'receipt.cancel',
   'expense.read',
   'expense.write',
   'expense.approve',

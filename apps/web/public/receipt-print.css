@@ -1,0 +1,163 @@
+@page {
+  size: A4;
+  margin: 12mm;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  color: #111;
+  font-family: Arial, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-size: 10pt;
+  background: #eee;
+}
+.sheet {
+  position: relative;
+  background: white;
+  width: 186mm;
+  min-height: 273mm;
+  margin: 12px auto;
+  padding: 0 0 12mm;
+  break-after: page;
+}
+.sheet:last-child {
+  break-after: auto;
+}
+.top {
+  font-size: 8pt;
+  padding-top: 2mm;
+}
+.meta {
+  margin-top: 4mm;
+  font-size: 9pt;
+}
+.meta span {
+  float: right;
+}
+h1 {
+  text-align: center;
+  font-size: 21pt;
+  margin: 5mm 0;
+}
+h2 {
+  font-size: 11pt;
+  margin: 4mm 0 2mm;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+th,
+td {
+  border: 1px solid #444;
+  padding: 2mm;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+th {
+  background: #f3f3f3;
+  font-weight: 600;
+}
+td {
+  height: 8mm;
+}
+th:first-child {
+  width: 24mm;
+}
+.items th {
+  font-size: 9pt;
+}
+.items th:first-child {
+  width: 12mm;
+}
+.items th:nth-child(2) {
+  width: 15mm;
+}
+.items th:nth-child(3) {
+  width: 28mm;
+}
+.items th:last-child {
+  width: 36mm;
+}
+.items td {
+  height: 7mm;
+  padding: 1.3mm;
+  text-align: center;
+}
+.items .money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.small {
+  font-size: 9pt;
+  margin: 1mm 0;
+}
+.total {
+  text-align: right;
+  font-size: 12pt;
+  font-weight: 700;
+  margin: 4mm 0;
+}
+.statement {
+  margin: 4mm 0 2mm;
+  line-height: 1.4;
+}
+.sign {
+  text-align: right;
+  line-height: 1.7;
+  margin: 2mm 0;
+}
+footer {
+  position: absolute;
+  bottom: 2mm;
+  font-size: 8pt;
+  color: #555;
+  width: 100%;
+  text-align: center;
+}
+.help {
+  max-width: 186mm;
+  margin: 15px auto;
+  padding: 12px;
+  background: white;
+  line-height: 1.5;
+}
+@media print {
+  body {
+    background: white;
+  }
+  .sheet {
+    margin: 0;
+    width: auto;
+  }
+  .help {
+    display: none;
+  }
+}
+
+.compact {
+  font-size: 8pt;
+}
+.compact th,
+.compact td {
+  padding: 1.2mm;
+  line-height: 1.25;
+}
+.compact h1 {
+  margin: 3mm 0;
+  font-size: 18pt;
+}
+.compact h2 {
+  margin: 3mm 0 1mm;
+  font-size: 9pt;
+}
+.compact .statement,
+.compact .sign {
+  margin: 2mm 0;
+  font-size: 8pt;
+}
+.compact .total {
+  font-size: 10pt;
+}

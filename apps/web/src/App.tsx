@@ -1,3 +1,4 @@
+import { OfferingPanel } from './OfferingPanel';
 import { FinancePanel } from './FinancePanel';
 import { CarePanel } from './CarePanel';
 import { NewcomerPanel } from './NewcomerPanel';
@@ -176,6 +177,11 @@ export function App() {
       )
     )
       setTab('finance');
+    else if (
+      !result.permissions.includes('membership.read') &&
+      result.permissions.some((p) => ['offering.read', 'receipt.read'].includes(p))
+    )
+      setTab('offerings');
     return result;
   }
   useEffect(() => {
@@ -190,6 +196,11 @@ export function App() {
           )
         )
           setTab('finance');
+        else if (
+          !result.permissions.includes('membership.read') &&
+          result.permissions.some((p) => ['offering.read', 'receipt.read'].includes(p))
+        )
+          setTab('offerings');
       })
       .catch(() => setSession(null))
       .finally(() => setChecking(false));
@@ -347,6 +358,7 @@ export function App() {
           ['audit', '감사 기록'],
           ['admin', '계정·권한'],
           ['finance', '지출 결재·재정'],
+          ['offerings', '헌금·기부금영수증'],
           ['care', '심방·목양'],
           ['newcomers', '새가족'],
           ['attendance', '모임·출석'],
@@ -355,6 +367,8 @@ export function App() {
         ]
           .filter(([key]) => {
             if (key === 'account') return true;
+            if (key === 'offerings')
+              return can('offering.read') || can('receipt.read') || can('finance.manage');
             if (key === 'finance')
               return can('expense.read') || can('finance.manage') || can('finance.readall');
             if (key === 'attendance') return can('attendance.read');
@@ -391,6 +405,12 @@ export function App() {
           'expense.pay',
           'finance.close',
           'finance.reverse',
+          'offering.review',
+          'offering.post',
+          'offering.reverse',
+          'receipt.issue',
+          'receipt.print',
+          'receipt.cancel',
         ].some(can) && (
           <p className="notice">
             운영 관리자·재정 처리자는 내 계정에서 MFA를 등록한 뒤 인증 코드를 사용해 다시
@@ -1064,6 +1084,9 @@ export function App() {
             />
           </div>
         </>
+      )}
+      {tab === 'offerings' && (
+        <OfferingPanel root={root} permissions={session.permissions} userId={session.userId} />
       )}
       {tab === 'finance' && (
         <FinancePanel root={root} permissions={session.permissions} userId={session.userId} />
