@@ -1,3 +1,4 @@
+import { BudgetPanel } from './BudgetPanel';
 import { FinanceReportPanel } from './FinanceReportPanel';
 import { useState, useEffect, type FormEvent } from 'react';
 import { api, uploadEvidence, evidenceBlob } from './api';
@@ -300,11 +301,13 @@ export function FinancePanel({
   const [section, setSection] = useState(
     can('expense.read')
       ? 'expenses'
-      : can('finance.report')
-        ? 'reports'
-        : can('finance.manage')
-          ? 'settings'
-          : 'ledger',
+      : can('budget.read')
+        ? 'budgets'
+        : can('finance.report')
+          ? 'reports'
+          : can('finance.manage')
+            ? 'settings'
+            : 'ledger',
   );
   const [catalog, setCatalog] = useState<Catalog>({ accounts: [], funds: [], periods: [] }),
     [candidates, setCandidates] = useState<Candidate[]>([]),
@@ -465,6 +468,14 @@ export function FinancePanel({
         처리하세요.
       </p>
       <nav className="actions" aria-label="재정 메뉴">
+        {can('budget.read') && (
+          <button
+            className={section === 'budgets' ? '' : 'secondary'}
+            onClick={() => setSection('budgets')}
+          >
+            연간 예산
+          </button>
+        )}
         {can('finance.report') && (
           <button
             className={section === 'reports' ? '' : 'secondary'}
@@ -502,6 +513,9 @@ export function FinancePanel({
         <p role="alert" className="error">
           {message}
         </p>
+      )}
+      {section === 'budgets' && can('budget.read') && (
+        <BudgetPanel base={base} permissions={permissions} />
       )}
       {section === 'reports' && can('finance.report') && (
         <FinanceReportPanel base={base} permissions={permissions} />

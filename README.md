@@ -139,7 +139,8 @@ church-management/
 - [x] 요청자 지정 지출 결재선·증빙 첨부·수동 지급·균형 분개·기간 마감·역분개
 - [x] 개별 헌금 입력·검수·회계 반영 및 자체 기부금영수증 발급·인쇄·취소
 - [x] 홈택스 전산매체 파일 생성·건별 발급/미발급/취소 확인
-- [ ] 헌금 배치·예산·결산 확장
+- [x] 월별 재정보고서와 계정·기금별 연간 예산·집행률
+- [ ] 헌금 배치·예산 승인·결산 확장
 
 ## 라이선스
 
@@ -195,3 +196,8 @@ MFA 등록에는 루트 `.env`의 `MFA_ENCRYPTION_KEY`(64자리 무작위 hex)�
 
 재정 → 재정보고서에서 기간·기금별 수입·지출·자산 잔액과 계정별 원장을 대조합니다.
 [집계·권한 정책](docs/decisions/ADR-010-financial-reports.md), [개발·검증 항목](docs/tasks/phase-3d-financial-reports.md)을 참고하세요.
+
+## 연간 예산
+
+재정 → 연간 예산에서 계정·기금별 편성액과 실제 게시 순지출·집행률을 관리합니다.
+[예산 정책](docs/decisions/ADR-011-annual-budgets.md), [개발 항목](docs/tasks/phase-3e-annual-budgets.md)을 참고하세요.
