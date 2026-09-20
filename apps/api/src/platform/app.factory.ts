@@ -7,10 +7,25 @@ import { AppModule } from '../app.module';
 import { ApiExceptionFilter } from './http/api-exception.filter';
 
 export async function createApplication() {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    !/^[a-f0-9]{64}$/i.test(process.env.MFA_ENCRYPTION_KEY ?? '')
+  )
+    throw new Error('A valid MFA_ENCRYPTION_KEY is required in production.');
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
   app.useLogger(app.get(Logger));
   app.enableShutdownHooks();
+  app.use(
+    (
+      _req: unknown,
+      res: { setHeader: (name: string, value: string) => void },
+      next: () => void,
+    ) => {
+      res.setHeader('Cache-Control', 'no-store');
+      next();
+    },
+  );
   app.setGlobalPrefix('api/v1');
   app.enableCors({
     origin: (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
@@ -33,9 +48,10 @@ export async function createApplication() {
     .setVersion('0.1.0')
     .build();
   const document = SwaggerModule.createDocument(app, openApiConfig);
-  SwaggerModule.setup('api/docs', app, document, {
-    jsonDocumentUrl: 'api/docs-json',
-  });
+  if (process.env.NODE_ENV !== 'production')
+    SwaggerModule.setup('api/docs', app, document, {
+      jsonDocumentUrl: 'api/docs-json',
+    });
 
   return app;
 }

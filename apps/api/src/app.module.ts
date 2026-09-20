@@ -1,3 +1,5 @@
+import { RegistryModule } from './modules/registry/registry.module';
+import { IdentityModule } from './modules/identity/identity.module';
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 
@@ -12,6 +14,8 @@ import { createHttpLoggerOptions } from './platform/logging/http-logger.config';
     }),
     PrismaModule,
     HealthModule,
+    IdentityModule,
+    RegistryModule,
   ],
 })
 export class AppModule {}

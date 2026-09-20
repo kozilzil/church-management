@@ -51,3 +51,19 @@
 - MFA 적용 범위
 - session 만료와 관리자 재인증 정책
 - 침해사고 대응 및 권한 정기 검토 절차
+
+## 구현된 인증 경계
+
+모든 controller는 기본 인증 거부이며 `Public` 또는 `Permission` 정책을 명시한다.
+인증은 `AuthenticationAdapter`, application의 권한/교회 검증은 `AccessService`를 사용한다.
+오류 코드는 `UNAUTHENTICATED`, `PERMISSION_DENIED`, `CHURCH_SCOPE_VIOLATION`으로 구분한다.
+`AUTH_ADAPTER=test-header`는 `NODE_ENV=test`에서만 허용하며 운영에서는 기동을 거부한다.
+UserRole의 복합 외래 키는 다른 교회의 사용자와 역할 연결을 거부한다.
+
+## 세션과 운영 관리자
+
+기본 adapter는 서버 세션을 DB에서 검증한다. 세션이 없으면 인증 실패다. production에서는
+MFA_ENCRYPTION_KEY 설정이 필수이며 관리자(identity.manage)는 MFA가 확인된 세션으로만
+업무에 접근한다. session.read 권한은 자기 계정 조회·보안 설정에만 사용한다.
+세션/CSRF/권한 및 MFA 정책은 ADR-005에 명시되어 있다.
+요청 로그는 query·body·cookie·인증 헤더를 포함하지 않고 경로와 기술 식별자 중심으로 기록한다.

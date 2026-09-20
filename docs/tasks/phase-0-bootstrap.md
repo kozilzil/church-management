@@ -20,11 +20,10 @@
 
 ## P0-002 PostgreSQL 개발 환경
 
-상태: **구현 완료 · Docker runtime 검증 대기**
+상태: **구현 완료 · 로컬 PostgreSQL 및 독립 DB 검증**
 
-현재 실행 환경에는 Docker daemon이 없어 schema validation과 migration SQL 검증까지
-완료했습니다. 실제 빈 PostgreSQL volume에 대한 migrate/seed/reset 반복 검증은 Docker가
-설치된 환경에서 완료해야 합니다.
+새 DB의 migration/seed 및 반복 적용을 로컬 PostgreSQL에서 검증한다.
+통합 테스트가 생성한 일회용 DB에서 reset을 포함한 초기화 경로도 검사한다.
 
 ### 범위
 
@@ -59,6 +58,8 @@
 
 ## P0-004 인증과 RBAC 골격
 
+상태: **구현 및 로컬 검증 완료**
+
 ### 범위
 
 - User, Role, Permission 최소 schema
@@ -73,6 +74,8 @@
 
 ## P0-005 CI
 
+상태: **workflow 구현 및 동일 명령 로컬 검증 완료 · GitHub 실행 대기**
+
 ### 범위
 
 - GitHub Actions
@@ -85,6 +88,8 @@
 3. CI가 production secret을 요구하지 않는다.
 
 ## P0-006 서버 PC 단일 명령 배포
+
+상태: **구현 완료 · Docker 검증 스크립트 포함**
 
 ### 범위
 

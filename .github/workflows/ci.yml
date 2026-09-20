@@ -1,0 +1,62 @@
+name: Quality and database
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: church_test
+          POSTGRES_PASSWORD: isolated-ci-password
+          POSTGRES_DB: church_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U church_test -d church_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://church_test:isolated-ci-password@localhost:5432/church_test?schema=public
+      NODE_ENV: test
+      LOG_LEVEL: silent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --global pnpm@11.19.0
+      - name: Install locked dependencies and generate Prisma client
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit and API tests
+        run: pnpm test
+      - name: Migrate and seed twice
+        run: |
+          pnpm db:deploy
+          pnpm db:seed
+          pnpm db:deploy
+          pnpm db:seed
+      - name: Database integration tests
+        run: pnpm test:integration
+      - name: Build
+        run: pnpm build
+      - name: Deployment failure gate
+        run: ./scripts/test-deploy-gate.sh
+  deployment:
+    runs-on: ubuntu-latest
+    needs: verify
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build, upgrade, preserve volumes and restore backup
+        run: ./scripts/verify-deployment.sh

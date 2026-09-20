@@ -4,6 +4,7 @@ import type { Options } from 'pino-http';
 export const SENSITIVE_LOG_PATHS = [
   'req.headers.authorization',
   'req.headers.cookie',
+  'req.headers["x-csrf-token"]',
   'req.headers["x-api-key"]',
   'res.headers["set-cookie"]',
 ] as const;
@@ -20,6 +21,9 @@ export function normalizeCorrelationId(value: string | string[] | undefined): st
 
 export function createHttpLoggerOptions(): Options {
   return {
+    serializers: {
+      req: (req) => ({ id: req.id, method: req.method, url: String(req.url ?? '').split('?')[0] }),
+    },
     level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'test' ? 'silent' : 'info'),
     redact: {
       paths: [...SENSITIVE_LOG_PATHS],

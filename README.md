@@ -3,8 +3,7 @@
 한국 교회의 교적과 재정을 안전하고 일관되게 관리하기 위한 웹 기반 시스템입니다.
 
 이 저장소는 Codex가 요구사항을 이해하고 작은 작업 단위로 구현할 수 있도록
-`Repository Knowledge Pack`과 Phase 0 실행 기반을 함께 구성합니다. 현재는 Web, API,
-PostgreSQL 개발 환경과 공통 API 골격까지 제공하며 실제 교적 기능은 Phase 1에서 구현합니다.
+`Repository Knowledge Pack`과 Phase 0 실행 기반을 함께 구성합니다. 현재는 인증·권한, 교적 Core API/관리 화면과 PostgreSQL 개발·Docker 배포 환경을 제공합니다.
 
 ## 목표
 
@@ -53,6 +52,14 @@ pnpm db:seed
 pnpm dev
 ```
 
+루트의 `pnpm dev`와 Prisma용 `pnpm db:*` 명령은 루트 `.env`를 자동으로 읽어
+workspace 하위 프로세스에 전달합니다. 이미 설정한 환경 변수는 `.env`보다 우선합니다.
+의존성 재설치 시에는 `pnpm install --frozen-lockfile`로 고정된 버전을 사용합니다.
+
+macOS에서 Web 개발 서버의 파일 감시가 멈추면 루트 `.env`에
+`CHOKIDAR_USEPOLLING=true`를 추가해 polling 방식으로 실행할 수 있습니다.
+API 개발 서버는 Node.js의 기본 watch 기능으로 변경된 코드를 다시 실행합니다.
+
 - Web: `http://localhost:5173`
 - API liveness: `http://localhost:3000/api/v1/health/liveness`
 - API readiness: `http://localhost:3000/api/v1/health/readiness`
@@ -82,7 +89,7 @@ pnpm build
 docker compose --env-file deploy/.env.production -f deploy/compose.production.yml up -d --build
 ```
 
-아직 애플리케이션 코드가 없으므로 배포 파일은 Phase 0에서 실행 가능한 형태로 구현합니다.
+배포 스크립트는 DB health → backup → migration → 서비스 health 순서를 검증합니다.
 구체적인 배포 구조와 운영 기준은
 [배포 아키텍처](docs/architecture/deployment.md)를 참조합니다.
 
@@ -126,8 +133,8 @@ church-management/
 - [x] 실행 가능한 모노레포 부트스트랩
 - [x] API health, 표준 오류, correlation ID, 로그 redaction
 - [x] PostgreSQL Compose와 Prisma 최초 migration 구성
-- [ ] 실행 가능한 production Compose와 `server-up.sh`
-- [ ] 교적 Core 구현
+- [x] 실행 가능한 production Compose와 `server-up.sh`
+- [x] 교적 Core 구현
 - [ ] 출석·심방 구현
 - [ ] 헌금·회계 구현
 
@@ -136,3 +143,30 @@ church-management/
 현재 별도 라이선스를 부여하지 않았습니다. 외부 공개 또는 제3자 배포 전에
 라이선스 정책을 결정해야 합니다. 참고 프로젝트의 코드는 복사하지 않고 구조와
 업무 개념만 참고합니다.
+
+## 최초 계정과 운영
+
+기본 비밀번호를 제공하지 않습니다. 개발 환경에서 환경 변수로 교회와 첫 계정을 생성합니다.
+비밀번호를 shell history에 직접 입력하지 않고 아래처럼 읽습니다.
+
+```bash
+export BOOTSTRAP_CHURCH_NAME='개발 교회'
+export BOOTSTRAP_USERNAME='admin'
+read -rs BOOTSTRAP_PASSWORD
+export BOOTSTRAP_PASSWORD
+pnpm admin:bootstrap
+unset BOOTSTRAP_PASSWORD
+```
+
+출력된 교회 식별자와 계정으로 로그인합니다. 이 명령은 **새 교회**를 만드는 최초 실행용이며,
+반복 seed나 기존 관리자 비밀번호 재설정 명령이 아닙니다.
+MFA 등록에는 루트 `.env`의 `MFA_ENCRYPTION_KEY`(64자리 무작위 hex)가 필요합니다.
+운영에서는 필수 설정이며 관리자 MFA 등록 후 다음 30초 코드를 사용해 다시 로그인합니다.
+
+- [배포·백업·복구](deploy/README.md)
+- [정책과 인증 결정](docs/decisions/ADR-005-membership-and-session-policies.md)
+- [구현·검증 범위](docs/tasks/implementation-status.md)
+- [API 업무 경로](docs/architecture/api-design.md)
+
+`pnpm test:integration`은 임시 DB를 생성할 수 있는 **테스트 전용** PostgreSQL 계정으로 실행합니다.
+운영 DB 계정으로 실행하지 않습니다.
