@@ -28,7 +28,8 @@
     "test:integration": "node scripts/with-env.mjs pnpm --filter @church/api test:integration",
     "admin:bootstrap": "node scripts/with-env.mjs pnpm --filter @church/api exec tsx prisma/bootstrap.ts",
     "admin:recover": "node scripts/with-env.mjs pnpm --filter @church/api exec tsx prisma/recover-account.ts",
-    "care:purge": "node scripts/with-env.mjs pnpm --filter @church/api exec tsx prisma/purge-care.ts"
+    "care:purge": "node scripts/with-env.mjs pnpm --filter @church/api exec tsx prisma/purge-care.ts",
+    "test:runtime": "node scripts/with-env.mjs pnpm --filter @church/api test:runtime"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
