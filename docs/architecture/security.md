@@ -80,3 +80,10 @@ MFA_ENCRYPTION_KEY 설정이 필수이며 관리자(identity.manage)와 재정 �
 주민번호는 제출 파일을 만들 때 브라우저에서만 사용하고 API 필드로 허용하지 않는다. 파일 원본이나
 홈택스 결과 파일을 서버로 업로드하지 않는다. 수동 결과 참조·사유에는 주민번호를 기록하지 않는다.
 내보내기 감사에는 제출/항목 ID만 남기며 파일과 식별번호를 저장하지 않는다.
+
+## 재정보고서 권한
+
+finance.report는 교회 전체 합계 조회 권한이며 교적 또는 개인 지출 참여 권한에 포함되지 않는다.
+원장 상세는 finance.readall, 헌금/지출 원거래와 증빙은 각각 offering.read/expense.read를 추가로 검사한다.
+집계 CSV는 finance.export와 finance.report가 모두 필요하고 최근 15분 인증·CSRF·Origin·운영 MFA를 검사한다.
+집계·상세·내보내기는 감사하되 기부자·수령인·자유기재 설명·금액을 감사 payload에 남기지 않는다.

@@ -675,6 +675,8 @@ model JournalLine {
   credit    Decimal      @default(0) @db.Decimal(15, 0)
   entry     JournalEntry @relation(fields: [churchId, journalId], references: [churchId, id])
 
+  @@index([churchId, journalId])
+  @@index([churchId, accountId, fundId])
   @@map("journal_line")
 }
 

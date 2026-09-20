@@ -1,3 +1,5 @@
+import { ReportController } from './interface/report.controller';
+import { ReportService } from './application/report.service';
 import { RegistryModule } from '../registry/registry.module';
 import { HometaxController } from './interface/hometax.controller';
 import { HometaxService } from './application/hometax.service';
@@ -12,9 +14,10 @@ import { ExpenseService } from './application/expense.service';
 import { EvidenceStorage, VolumeEvidenceStorage } from './infrastructure/evidence-storage';
 @Module({
   imports: [RegistryModule],
-  controllers: [FinanceController, OfferingController, HometaxController],
+  controllers: [FinanceController, OfferingController, HometaxController, ReportController],
   providers: [
     FinancePolicy,
+    ReportService,
     OfferingService,
     ReceiptService,
     HometaxService,
