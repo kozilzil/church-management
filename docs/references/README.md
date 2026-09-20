@@ -3,12 +3,12 @@
 외부 프로젝트는 기능, 용어, 데이터 모델, UX를 비교하기 위한 참고 자료다. 코드를 복사하기
 전에는 해당 파일과 dependency의 라이선스를 별도로 확인해야 한다.
 
-| 프로젝트 | 주된 참고 영역 | 라이선스 주의 |
-|---|---|---|
-| [ChurchCRM](https://github.com/ChurchCRM/CRM) | Person/Family, Group, Giving | MIT 여부를 사용할 commit 기준으로 재확인 |
-| [ChurchApps](https://github.com/ChurchApps) | API 분리, 관리 UI, 공통 package | repository별 라이선스 재확인 |
-| [CiviCRM](https://github.com/civicrm/civicrm-core) | 비영리 CRM, Contribution, Event | AGPL 영향 검토 필요 |
-| [EcclesiaCRM](https://github.com/phili67/EcclesiaCRM) | 목양·교회 운영 기능 비교 | 정확한 upstream과 보안 상태 재확인 |
+| 프로젝트                                              | 주된 참고 영역                  | 라이선스 주의                            |
+| ----------------------------------------------------- | ------------------------------- | ---------------------------------------- |
+| [ChurchCRM](https://github.com/ChurchCRM/CRM)         | Person/Family, Group, Giving    | MIT 여부를 사용할 commit 기준으로 재확인 |
+| [ChurchApps](https://github.com/ChurchApps)           | API 분리, 관리 UI, 공통 package | repository별 라이선스 재확인             |
+| [CiviCRM](https://github.com/civicrm/civicrm-core)    | 비영리 CRM, Contribution, Event | AGPL 영향 검토 필요                      |
+| [EcclesiaCRM](https://github.com/phili67/EcclesiaCRM) | 목양·교회 운영 기능 비교        | 정확한 upstream과 보안 상태 재확인       |
 
 국내 상용 교적 시스템은 소스가 아니라 요구사항 reference로만 사용한다. 특히 새가족,
 교구/구역, 심방, 직분, 교적카드, 증명서, 기부금영수증, 예산/결산 workflow를 비교한다.

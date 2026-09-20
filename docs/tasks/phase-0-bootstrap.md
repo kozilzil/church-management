@@ -4,6 +4,8 @@
 
 ## P0-001 TypeScript monorepo 생성
 
+상태: **완료**
+
 ### 범위
 
 - pnpm workspace
@@ -17,6 +19,12 @@
 3. 최소 예제 외 업무 코드는 구현하지 않는다.
 
 ## P0-002 PostgreSQL 개발 환경
+
+상태: **구현 완료 · Docker runtime 검증 대기**
+
+현재 실행 환경에는 Docker daemon이 없어 schema validation과 migration SQL 검증까지
+완료했습니다. 실제 빈 PostgreSQL volume에 대한 migrate/seed/reset 반복 검증은 Docker가
+설치된 환경에서 완료해야 합니다.
 
 ### 범위
 
@@ -32,6 +40,8 @@
 3. migration과 seed가 빈 DB에서 반복 가능하다.
 
 ## P0-003 API 공통 골격
+
+상태: **완료**
 
 ### 범위
 

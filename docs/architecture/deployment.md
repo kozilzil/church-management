@@ -14,13 +14,13 @@
 
 ## Production Compose 구성
 
-| Service | 역할 | 외부 노출 |
-|---|---|---|
-| gateway | HTTP(S) 진입점, 정적 Web, API reverse proxy | 지정 port만 노출 |
-| web | frontend production build | 내부 network |
-| api | 업무 API와 worker | 내부 network |
-| migrate | API image를 사용한 one-shot DB migration | 노출 없음 |
-| postgres | 영속 DB | host에 직접 노출하지 않음 |
+| Service  | 역할                                        | 외부 노출                 |
+| -------- | ------------------------------------------- | ------------------------- |
+| gateway  | HTTP(S) 진입점, 정적 Web, API reverse proxy | 지정 port만 노출          |
+| web      | frontend production build                   | 내부 network              |
+| api      | 업무 API와 worker                           | 내부 network              |
+| migrate  | API image를 사용한 one-shot DB migration    | 노출 없음                 |
+| postgres | 영속 DB                                     | host에 직접 노출하지 않음 |
 
 ## 기동 순서
 

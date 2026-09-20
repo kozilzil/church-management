@@ -2,9 +2,9 @@
 
 한국 교회의 교적과 재정을 안전하고 일관되게 관리하기 위한 웹 기반 시스템입니다.
 
-이 저장소는 Codex가 요구사항을 이해하고 작은 작업 단위로 구현할 수 있도록 먼저
-`Repository Knowledge Pack`을 구성한 상태입니다. 아직 운영 가능한 애플리케이션은
-아니며, 구현 전에 합의해야 할 기준과 Phase별 작업을 문서화했습니다.
+이 저장소는 Codex가 요구사항을 이해하고 작은 작업 단위로 구현할 수 있도록
+`Repository Knowledge Pack`과 Phase 0 실행 기반을 함께 구성합니다. 현재는 Web, API,
+PostgreSQL 개발 환경과 공통 API 골격까지 제공하며 실제 교적 기능은 Phase 1에서 구현합니다.
 
 ## 목표
 
@@ -17,14 +17,14 @@
 
 ## 문서 진입점
 
-| 문서 | 목적 |
-|---|---|
-| [AGENTS.md](AGENTS.md) | Codex와 개발자가 반드시 따라야 할 저장소 규칙 |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | 전체 시스템 구조와 모듈 경계 |
-| [docs/requirements/00-overview.md](docs/requirements/00-overview.md) | 범위, 사용자, 용어, 단계별 목표 |
-| [docs/architecture/domain-model.md](docs/architecture/domain-model.md) | 핵심 도메인 모델과 관계 |
-| [docs/architecture/database.md](docs/architecture/database.md) | 데이터베이스 설계 원칙 |
-| [docs/tasks/phase-1-backlog.md](docs/tasks/phase-1-backlog.md) | Codex에 전달할 Phase 1 작업 목록 |
+| 문서                                                                   | 목적                                          |
+| ---------------------------------------------------------------------- | --------------------------------------------- |
+| [AGENTS.md](AGENTS.md)                                                 | Codex와 개발자가 반드시 따라야 할 저장소 규칙 |
+| [ARCHITECTURE.md](ARCHITECTURE.md)                                     | 전체 시스템 구조와 모듈 경계                  |
+| [docs/requirements/00-overview.md](docs/requirements/00-overview.md)   | 범위, 사용자, 용어, 단계별 목표               |
+| [docs/architecture/domain-model.md](docs/architecture/domain-model.md) | 핵심 도메인 모델과 관계                       |
+| [docs/architecture/database.md](docs/architecture/database.md)         | 데이터베이스 설계 원칙                        |
+| [docs/tasks/phase-1-backlog.md](docs/tasks/phase-1-backlog.md)         | Codex에 전달할 Phase 1 작업 목록              |
 
 ## 권장 기술 구성
 
@@ -38,6 +38,34 @@
 
 기술 선택의 근거와 변경 절차는
 [ADR-001](docs/decisions/ADR-001-technology-stack.md)을 따릅니다.
+
+## 개발 환경 실행
+
+필수 도구는 Node.js 24.15 이상, pnpm 11, Docker Engine과 Docker Compose plugin입니다.
+
+```bash
+cp .env.example .env
+pnpm install
+pnpm db:up
+pnpm db:generate
+pnpm db:migrate
+pnpm db:seed
+pnpm dev
+```
+
+- Web: `http://localhost:5173`
+- API liveness: `http://localhost:3000/api/v1/health/liveness`
+- API readiness: `http://localhost:3000/api/v1/health/readiness`
+- Swagger UI: `http://localhost:3000/api/docs`
+
+품질 검사는 root에서 실행합니다.
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
 
 ## 운영 배포 목표
 
@@ -95,7 +123,9 @@ church-management/
 - [x] 보안·데이터베이스·API 원칙
 - [x] 서버 PC 단일 명령 Docker 배포 원칙
 - [x] Phase 0/1 Codex 작업 목록
-- [ ] 실행 가능한 모노레포 부트스트랩
+- [x] 실행 가능한 모노레포 부트스트랩
+- [x] API health, 표준 오류, correlation ID, 로그 redaction
+- [x] PostgreSQL Compose와 Prisma 최초 migration 구성
 - [ ] 실행 가능한 production Compose와 `server-up.sh`
 - [ ] 교적 Core 구현
 - [ ] 출석·심방 구현

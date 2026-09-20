@@ -58,13 +58,13 @@ erDiagram
 
 ## 삭제 정책
 
-| 데이터 | 정책 |
-|---|---|
-| 잘못 만든 미사용 master | 권한 있는 soft delete 가능 |
-| Member/Household | 비활성화, 병합 또는 상태 전환 |
-| 기간 이력 | append-only 정정 |
-| Posted finance | reversal만 허용 |
-| AuditEvent | application에서 삭제 불가 |
+| 데이터                  | 정책                          |
+| ----------------------- | ----------------------------- |
+| 잘못 만든 미사용 master | 권한 있는 soft delete 가능    |
+| Member/Household        | 비활성화, 병합 또는 상태 전환 |
+| 기간 이력               | append-only 정정              |
+| Posted finance          | reversal만 허용               |
+| AuditEvent              | application에서 삭제 불가     |
 
 ## 아직 결정이 필요한 항목
 

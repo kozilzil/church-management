@@ -1,6 +1,6 @@
 # ADR-001: 초기 기술 스택
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-09-20
 
 ## Context

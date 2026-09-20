@@ -17,20 +17,20 @@ flowchart TD
 
 ## 모듈
 
-| 모듈 | 책임 | 대표 Entity |
-|---|---|---|
-| Identity | 사용자, 역할, 권한, 로그인 정책 | User, Role, Permission |
-| Member | 교인 기본 정보와 교적 상태 | Member, MemberStatusHistory |
-| Household | 가족/세대와 관계 | Household, HouseholdMembership |
-| Organization | 교구, 구역, 부서, 교회학교 | Organization, OrganizationMembership |
-| Position | 직분과 임명 이력 | Position, PositionAppointment |
-| Newcomer | 새가족 등록·정착 과정 | NewcomerJourney, FollowUp |
-| Attendance | 예배·모임과 출석 | Gathering, AttendanceRecord |
-| Pastoral Care | 심방, 상담, 기도 요청 | Visit, CareNote |
-| Offering | 헌금 접수·배치·헌금 종류 | Offering, OfferingBatch, OfferingType |
-| Accounting | 계정과목, 분개, 예산, 마감 | Account, JournalEntry, Budget |
-| Document | 증명서와 기부금영수증 | DocumentTemplate, IssuedDocument |
-| Audit | 중요 행위의 변경 추적 | AuditEvent |
+| 모듈          | 책임                            | 대표 Entity                           |
+| ------------- | ------------------------------- | ------------------------------------- |
+| Identity      | 사용자, 역할, 권한, 로그인 정책 | User, Role, Permission                |
+| Member        | 교인 기본 정보와 교적 상태      | Member, MemberStatusHistory           |
+| Household     | 가족/세대와 관계                | Household, HouseholdMembership        |
+| Organization  | 교구, 구역, 부서, 교회학교      | Organization, OrganizationMembership  |
+| Position      | 직분과 임명 이력                | Position, PositionAppointment         |
+| Newcomer      | 새가족 등록·정착 과정           | NewcomerJourney, FollowUp             |
+| Attendance    | 예배·모임과 출석                | Gathering, AttendanceRecord           |
+| Pastoral Care | 심방, 상담, 기도 요청           | Visit, CareNote                       |
+| Offering      | 헌금 접수·배치·헌금 종류        | Offering, OfferingBatch, OfferingType |
+| Accounting    | 계정과목, 분개, 예산, 마감      | Account, JournalEntry, Budget         |
+| Document      | 증명서와 기부금영수증           | DocumentTemplate, IssuedDocument      |
+| Audit         | 중요 행위의 변경 추적           | AuditEvent                            |
 
 ## 의존성 원칙
 
