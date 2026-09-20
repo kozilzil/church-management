@@ -11,6 +11,7 @@ import {
   page,
   type Tx,
 } from './finance-policy.service';
+import { BudgetControlService } from './budget-control.service';
 import { LedgerService } from './ledger.service';
 import { EvidenceStorage } from '../infrastructure/evidence-storage';
 import { evidenceMime, evidenceName } from '../domain/evidence';
@@ -28,6 +29,7 @@ export type EvidenceFile = { buffer: Buffer; originalname: string };
 export class ExpenseService {
   constructor(
     @Inject(FinancePolicy) private readonly p: FinancePolicy,
+    @Inject(BudgetControlService) private readonly budget: BudgetControlService,
     @Inject(LedgerService) private readonly ledger: LedgerService,
     @Inject(EvidenceStorage) private readonly storage: EvidenceStorage,
   ) {}
@@ -195,6 +197,15 @@ export class ExpenseService {
       : null;
     return {
       ...row,
+      budgetCheck: ['DRAFT', 'RETURNED', 'IN_REVIEW', 'APPROVED'].includes(row.state)
+        ? await this.p.write(a, c, 'expense.read', (tx) => this.budget.evaluate(tx, row))
+        : null,
+      budgetChecks: await this.p.db.expenseBudgetCheck.findMany({
+        where: { churchId: c, requestId: id },
+        select: { action: true, year: true, mode: true, status: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+      }),
       requester: requester.username,
       amount: row.amount.toNumber(),
       attachments,
@@ -281,12 +292,15 @@ export class ExpenseService {
         files = await tx.expenseAttachment.findMany({ where: { requestId: id, removedAt: null } });
       if (!row.evidenceReference.trim() && !files.length)
         bad('증빙 파일 또는 증빙 문서 참조를 추가하세요.');
+      if (row.budgetYear === null) bad('예산 연도를 지정하여 초안을 저장하세요.');
+      const budgetCheck = await this.budget.enforce(a, tx, row, 'SUBMIT');
       const round = row.round + 1;
       const s = await tx.expenseSubmission.create({
         data: {
           churchId: c,
           requestId: id,
           round,
+          budgetYear: row.budgetYear,
           title: row.title,
           purpose: row.purpose,
           payee: row.payee,
@@ -316,7 +330,7 @@ export class ExpenseService {
         },
       });
       await this.event(a, next, 'submit', '', tx);
-      return { id, version: next.version };
+      return { id, version: next.version, budgetCheck };
     });
   }
   decide(a: Actor, c: string, id: string, d: DecisionDto) {
@@ -339,6 +353,8 @@ export class ExpenseService {
         });
         const current = s.approvals.find((x) => x.decision === 'PENDING');
         if (!current || current.userId !== a.userId) denied();
+        const budgetCheck =
+          d.decision === 'APPROVED' ? await this.budget.enforce(a, tx, row, 'APPROVE') : null;
         await tx.expenseApproval.update({
           where: { id: current.id },
           data: { decision: d.decision, reason: d.reason, decidedAt: new Date() },
@@ -354,7 +370,7 @@ export class ExpenseService {
           },
         });
         await this.event(a, next, d.decision === 'REJECTED' ? 'reject' : 'approve', d.reason, tx);
-        return { id, version: next.version };
+        return { id, version: next.version, budgetCheck };
       },
       true,
     );
@@ -388,6 +404,12 @@ export class ExpenseService {
         });
         if (!s.approvals.length || s.approvals.some((x) => x.decision !== 'APPROVED'))
           bad('모든 결재가 완료되어야 합니다.');
+        this.p.date(d.paidOn);
+        if (row.budgetYear !== null && Number(d.paidOn.slice(0, 4)) !== row.budgetYear)
+          bad(
+            '지급일은 승인된 예산 연도와 같아야 합니다. 연도가 바뀌면 기존 요청을 취소하고 새 연도로 다시 결재받으세요.',
+          );
+        const budgetCheck = await this.budget.enforce(a, tx, row, 'PAY');
         const ref = d.reference.trim();
         if (await tx.expensePayment.count({ where: { churchId: c, reference: ref } }))
           bad('이미 사용한 지급 참조입니다.');
@@ -416,7 +438,7 @@ export class ExpenseService {
           data: { state: 'PAID', version: { increment: 1 } },
         });
         await this.event(a, next, 'pay', '', tx);
-        return { id, journalId, version: next.version };
+        return { id, journalId, version: next.version, budgetCheck };
       },
       true,
     );

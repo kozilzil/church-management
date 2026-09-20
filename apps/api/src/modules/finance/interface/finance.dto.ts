@@ -54,6 +54,7 @@ export class PeriodDto extends FundDto {
   @ApiProperty({ type: String }) @Matches(/^\d{4}-\d{2}-\d{2}$/) endsOn!: string;
 }
 export class ExpenseDto {
+  @ApiProperty({ type: Number }) @IsInt() @Min(1900) @Max(9999) budgetYear!: number;
   @ApiProperty({ type: String }) @IsString() @Length(1, 120) @Matches(/\S/) title!: string;
   @ApiProperty({ type: String }) @IsString() @Length(1, 2000) @Matches(/\S/) purpose!: string;
   @ApiProperty({ type: String }) @IsString() @Length(1, 100) @Matches(/\S/) payee!: string;

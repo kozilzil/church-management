@@ -77,3 +77,10 @@ export * from './hometax.js';
 
 export type * from './financial-reports.js';
 export type * from './budgets.js';
+
+export type {
+  BudgetChangeView,
+  BudgetChanges,
+  BudgetControlPolicy,
+  ExpenseBudgetStatus,
+} from './budgets.js';

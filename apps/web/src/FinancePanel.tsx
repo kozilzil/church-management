@@ -1,3 +1,5 @@
+import type { ExpenseBudgetStatus } from '@church/contracts';
+import { BudgetControlSettings } from './BudgetControlSettings';
 import { BudgetPanel } from './BudgetPanel';
 import { FinanceReportPanel } from './FinanceReportPanel';
 import { useState, useEffect, type FormEvent } from 'react';
@@ -56,6 +58,15 @@ type Submission = {
   }[];
 };
 type Detail = Summary & {
+  budgetYear: number | null;
+  budgetCheck: ExpenseBudgetStatus | null;
+  budgetChecks: {
+    action: string;
+    year: number | null;
+    mode: string;
+    status: string;
+    createdAt: string;
+  }[];
   purpose: string;
   payee: string;
   accountId: string;
@@ -130,7 +141,12 @@ function ExpenseEditor({
     setBusy(true);
     setError('');
     try {
-      await save({ ...d, amount: Number(d.amount), approverIds: line });
+      await save({
+        ...d,
+        budgetYear: Number(d.budgetYear),
+        amount: Number(d.amount),
+        approverIds: line,
+      });
     } catch (e) {
       setError(String(e));
     } finally {
@@ -159,6 +175,19 @@ function ExpenseEditor({
             step="1"
             required
             defaultValue={initial?.amount}
+          />
+        </label>
+        <label>
+          예산 연도
+          <input
+            name="budgetYear"
+            type="number"
+            required
+            min="1900"
+            max="9999"
+            step="1"
+            defaultValue={initial?.budgetYear ?? ''}
+            placeholder="실제 지급 예정 연도"
           />
         </label>
         <label>
@@ -515,7 +544,7 @@ export function FinancePanel({
         </p>
       )}
       {section === 'budgets' && can('budget.read') && (
-        <BudgetPanel base={base} permissions={permissions} />
+        <BudgetPanel base={base} permissions={permissions} userId={userId} />
       )}
       {section === 'reports' && can('finance.report') && (
         <FinanceReportPanel base={base} permissions={permissions} />
@@ -630,7 +659,37 @@ export function FinancePanel({
               <h3>
                 {selected.title} <span className="status-pill">{status[selected.state]}</span>
               </h3>
-              <p>요청자: {selected.requester}</p>
+              <p>
+                요청자: {selected.requester} · 예산 연도:{' '}
+                {selected.budgetYear ?? '미지정 (기존 요청)'}
+              </p>
+              {selected.budgetCheck && (
+                <div className="notice" role="status">
+                  <strong>
+                    예산 확인:{' '}
+                    {
+                      {
+                        WITHIN: '예산 이내',
+                        UNBUDGETED: '미편성',
+                        EXCEEDED: '예약액 포함 예산 초과',
+                        LEGACY_YEAR: '기존 요청의 예산 연도 미지정',
+                      }[selected.budgetCheck.status]
+                    }
+                  </strong>
+                  <p>
+                    {selected.budgetCheck.mode === 'BLOCK'
+                      ? '초과·미편성 요청의 상신·승인·지급은 차단됩니다.'
+                      : '경고 모드입니다. 예산 상태를 확인한 후 진행하세요.'}{' '}
+                    다른 미지급 결재 예약액도 포함하며 처리 시 다시 확인합니다.
+                  </p>
+                  {selected.budgetCheck.status === 'LEGACY_YEAR' && (
+                    <p>
+                      새로 상신하려면 초안에 연도를 저장하세요. 기존 결재는 경고 모드에서 완료하거나
+                      취소 후 새 연도로 다시 요청할 수 있습니다.
+                    </p>
+                  )}
+                </div>
+              )}
               <p className="expense-amount">{won(selected.amount)}</p>
               <p>
                 수령인: {selected.payee} · 용도: {selected.purpose}
@@ -828,6 +887,22 @@ export function FinancePanel({
                     />
                   </details>
                 )}
+              <h4>예산 확인 이력 (최근 30건)</h4>
+              {selected.budgetChecks?.map((x, i) => (
+                <p key={i}>
+                  {new Date(x.createdAt).toLocaleString('ko-KR')} ·{' '}
+                  {{ SUBMIT: '상신', APPROVE: '승인', PAY: '지급' }[x.action]} ·{' '}
+                  {x.year ?? '연도 미지정'} · {x.mode === 'BLOCK' ? '차단 모드' : '경고 모드'} ·{' '}
+                  {
+                    {
+                      WITHIN: '예산 이내',
+                      UNBUDGETED: '미편성',
+                      EXCEEDED: '초과',
+                      LEGACY_YEAR: '연도 미지정',
+                    }[x.status]
+                  }
+                </p>
+              ))}
               <h4>제출본·결재 이력</h4>
               {selected.submissions.map(submissionView)}
               {selected.olderSubmissionCount > 0 && (
@@ -910,6 +985,7 @@ export function FinancePanel({
       )}
       {section === 'settings' && (
         <>
+          <BudgetControlSettings base={base} />
           <p>
             재정 설정 권한만으로 지출 상세를 열람하거나 승인·지급할 수 없습니다. 계정·권한 메뉴에서
             별도의 재정 역할을 만들어 담당자에게 부여하세요.

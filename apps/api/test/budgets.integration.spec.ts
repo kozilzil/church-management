@@ -43,6 +43,14 @@ describe.skipIf(!enabled)('Annual budgets', () => {
     reason: '합성 예산 편성 사유',
     ...extra,
   });
+  async function allocate(d: object) {
+    const change = await call('writer', 'post', '/budgets/revisions', d).expect(201);
+    const decision = await call('approver', 'post', `/budgets/changes/${change.body.id}/decision`, {
+      decision: 'APPROVED',
+      reason: '합성 독립 승인',
+    }).expect(201);
+    return { body: { id: decision.body.revisionId, version: decision.body.version } };
+  }
   async function summary(year = 2020, fundId?: string): Promise<AnnualBudget> {
     const r = await call(
       'reader',
@@ -97,6 +105,7 @@ describe.skipIf(!enabled)('Annual budgets', () => {
     other = (await db.church.create({ data: { name: 'Other Budget Church' } })).id;
     const roles: Record<string, string[]> = {
       reader: ['budget.read'],
+      approver: ['budget.read', 'budget.approve'],
       writer: ['budget.read', 'budget.write', 'expense.read', 'expense.write'],
       writeonly: ['budget.write'],
       outsider: ['finance.manage', 'finance.report', 'finance.readall'],
@@ -225,13 +234,18 @@ describe.skipIf(!enabled)('Annual budgets', () => {
     expect((await summary(2030)).items).toEqual([]);
   });
   it('appends budget revisions atomically, rejects stale edits and preserves the original amount and reason', async () => {
-    const first = await call('writer', 'post', '/budgets/revisions', command()).expect(201);
+    const first = await allocate(command());
     const changed = command({ version: 1, amount: '1500', reason: '합성 증액 사유' });
     const rs = await Promise.all([
       call('writer', 'post', '/budgets/revisions', changed),
       call('writer', 'post', '/budgets/revisions', changed),
     ]);
     expect(rs.map((r) => r.status).sort()).toEqual([201, 409]);
+    const pending = rs.find((r) => r.status === 201)!;
+    await call('approver', 'post', `/budgets/changes/${pending.body.id}/decision`, {
+      decision: 'APPROVED',
+      reason: '합성 승인',
+    }).expect(201);
     await call(
       'writer',
       'post',
@@ -260,7 +274,8 @@ describe.skipIf(!enabled)('Annual budgets', () => {
     expect(history.body.items[1].id).toBe(first.body.id);
     expect(history.body.items[0].createdByName).toBe('writer');
     const audit = JSON.stringify(await db.auditEvent.findMany({ where: { churchId: church } }));
-    expect(audit).toContain('budget.revise');
+    expect(audit).toContain('budget.request');
+    expect(audit).toContain('budget.approved');
     expect(audit).toContain('budget.history');
     expect(audit).not.toContain('합성 예산 편성 사유');
     expect(audit).not.toContain('합성 증액 사유');
@@ -271,13 +286,9 @@ describe.skipIf(!enabled)('Annual budgets', () => {
     await post('2020-12-31', 'E2', 'A', '300');
     await post('2020-02-29', 'E3', 'A', '50', secondFund);
     await post('2020-06-01', 'A', 'R', '9999');
-    await call(
-      'writer',
-      'post',
-      '/budgets/revisions',
-      command({ accountId: accounts.E3, fundId: secondFund, amount: '0' }),
-    ).expect(201);
+    await allocate(command({ accountId: accounts.E3, fundId: secondFund, amount: '0' }));
     await call('writer', 'post', '/expenses', {
+      budgetYear: 2020,
       title: '가상 미지급 요청',
       purpose: '가상 목적',
       payee: '합성 상점',
@@ -317,12 +328,7 @@ describe.skipIf(!enabled)('Annual budgets', () => {
       remaining: '-50',
       executionRate: null,
     });
-    await call(
-      'writer',
-      'post',
-      '/budgets/revisions',
-      command({ year: 2021, amount: '2000' }),
-    ).expect(201);
+    await allocate(command({ year: 2021, amount: '2000' }));
     expect((await summary(2021)).items[0]).toMatchObject({
       budget: '2000',
       actual: '-1000',
@@ -341,12 +347,7 @@ describe.skipIf(!enabled)('Annual budgets', () => {
           data: { churchId: church, code, name: code, kind: 'EXPENSE' },
         })
       ).id;
-      await call(
-        'writer',
-        'post',
-        '/budgets/revisions',
-        command({ year: 2022, accountId: accounts[code], amount: '999999999999999' }),
-      ).expect(201);
+      await allocate(command({ year: 2022, accountId: accounts[code], amount: '999999999999999' }));
       await post('2022-12-31', code, 'A', '999999999999999');
     }
     const r = await summary(2022);
@@ -357,10 +358,7 @@ describe.skipIf(!enabled)('Annual budgets', () => {
       executionRate: '100.00',
     });
     const count = await db.journalEntry.count();
-    await call(
-      'writer',
-      'post',
-      '/budgets/revisions',
+    await allocate(
       command({
         year: 2022,
         accountId: accounts.LARGE0,
@@ -368,7 +366,7 @@ describe.skipIf(!enabled)('Annual budgets', () => {
         version: 1,
         reason: '합성 예산 철회',
       }),
-    ).expect(201);
+    );
     const changed = await summary(2022);
     expect(changed.totals.actual).toBe(r.totals.actual);
     expect(changed.overBudgetCount).toBe(1);
@@ -376,22 +374,12 @@ describe.skipIf(!enabled)('Annual budgets', () => {
   });
   it('paginates append-only history without mixing new revisions into older pages', async () => {
     for (let version = 0; version < 32; version++)
-      await call(
-        'writer',
-        'post',
-        '/budgets/revisions',
-        command({ year: 2030, version, amount: String(version) }),
-      ).expect(201);
+      await allocate(command({ year: 2030, version, amount: String(version) }));
     const q = { year: 2030, accountId: accounts.E1!, fundId: fund };
     const first = await call('reader', 'get', '/budgets/history?' + qs(q)).expect(200);
     expect(first.body.items).toHaveLength(30);
     expect(first.body.nextBeforeVersion).toBe(3);
-    await call(
-      'writer',
-      'post',
-      '/budgets/revisions',
-      command({ year: 2030, version: 32, amount: '32' }),
-    ).expect(201);
+    await allocate(command({ year: 2030, version: 32, amount: '32' }));
     const next = await call(
       'reader',
       'get',
@@ -433,8 +421,30 @@ describe.skipIf(!enabled)('Annual budgets', () => {
         `GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA public TO "${role}"`,
       );
       await tx.$executeRawUnsafe(`SET LOCAL ROLE "${role}"`);
+      const change = await tx.budgetChange.create({
+        data: {
+          churchId: church,
+          year: 2035,
+          accountId: accounts.E1!,
+          fundId: fund,
+          amount: 100,
+          reason: '합성 운영 권한',
+          baseVersion: 0,
+          requestedBy: sessions.writer!.id,
+        },
+      });
+      await tx.budgetDecision.create({
+        data: {
+          churchId: church,
+          changeId: change.id,
+          decision: 'APPROVED',
+          reason: '합성 승인',
+          decidedBy: sessions.approver!.id,
+        },
+      });
       await tx.budgetRevision.create({
         data: {
+          changeId: change.id,
           churchId: church,
           year: 2035,
           accountId: accounts.E1!,
@@ -472,12 +482,7 @@ describe.skipIf(!enabled)('Annual budgets', () => {
   it('continues reading closed-period actuals and records later budget corrections independently', async () => {
     const before = await summary();
     await db.financePeriod.update({ where: { id: period }, data: { closedAt: new Date() } });
-    await call(
-      'writer',
-      'post',
-      '/budgets/revisions',
-      command({ version: 2, amount: '2000', reason: '마감 후 예산 자료 정정' }),
-    ).expect(201);
+    await allocate(command({ version: 2, amount: '2000', reason: '마감 후 예산 자료 정정' }));
     const after = await summary();
     expect(after.totals.actual).toBe(before.totals.actual);
     expect(after.totals.budget).toBe('2000');

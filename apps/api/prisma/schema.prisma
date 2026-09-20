@@ -529,6 +529,7 @@ model FinancePeriod {
 }
 
 model ExpenseRequest {
+  budgetYear Int? @map("budget_year")
   currentApproverId String?             @map("current_approver_id") @db.Uuid
   id                String              @id @default(uuid()) @db.Uuid
   churchId          String              @map("church_id") @db.Uuid
@@ -554,6 +555,7 @@ model ExpenseRequest {
 }
 
 model ExpenseSubmission {
+  budgetYear Int? @map("budget_year")
   id                String            @id @default(uuid()) @db.Uuid
   churchId          String            @map("church_id") @db.Uuid
   requestId         String            @map("request_id") @db.Uuid
@@ -890,6 +892,7 @@ model ReceiptCancellation {
 }
 
 model BudgetRevision {
+  changeId String? @unique @map("change_id") @db.Uuid
   id        String   @id @default(uuid()) @db.Uuid
   churchId  String   @map("church_id") @db.Uuid
   year      Int
@@ -903,4 +906,59 @@ model BudgetRevision {
 
   @@unique([churchId, year, accountId, fundId, version], map: "budget_revision_church_id_year_account_id_fund_id_version_key")
   @@map("budget_revision")
+}
+
+model BudgetChange {
+  id String @id @default(uuid()) @db.Uuid
+  churchId String @map("church_id") @db.Uuid
+  year Int
+  accountId String @map("account_id") @db.Uuid
+  fundId String @map("fund_id") @db.Uuid
+  baseVersion Int @map("base_version")
+  amount Decimal @db.Decimal(15,0)
+  reason String
+  requestedBy String @map("requested_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  decision BudgetDecision?
+  @@unique([churchId,id])
+  @@index([churchId,year,createdAt,id])
+  @@map("budget_change")
+}
+model BudgetDecision {
+  changeId String @id @map("change_id") @db.Uuid
+  churchId String @map("church_id") @db.Uuid
+  decision String
+  reason String
+  decidedBy String @map("decided_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  change BudgetChange @relation(fields:[churchId,changeId],references:[churchId,id])
+  @@unique([churchId,changeId])
+  @@map("budget_decision")
+}
+model BudgetPolicyRevision {
+  id String @id @default(uuid()) @db.Uuid
+  churchId String @map("church_id") @db.Uuid
+  version Int
+  mode String
+  reason String
+  createdBy String @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  @@unique([churchId,version])
+  @@map("budget_policy_revision")
+}
+model ExpenseBudgetCheck {
+  id String @id @default(uuid()) @db.Uuid
+  churchId String @map("church_id") @db.Uuid
+  requestId String @map("request_id") @db.Uuid
+  requestVersion Int @map("request_version")
+  actorId String @map("actor_id") @db.Uuid
+  action String
+  year Int?
+  mode String
+  status String
+  budgetVersion Int @map("budget_version")
+  policyVersion Int @map("policy_version")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  @@index([churchId,requestId,createdAt])
+  @@map("expense_budget_check")
 }

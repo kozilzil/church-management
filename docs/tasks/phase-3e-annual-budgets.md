@@ -11,4 +11,4 @@
 - [x] 합성 PostgreSQL 통합 검증 및 기존 전체 테스트·배포 계약 검증.
 
 계산 및 정책은 [ADR-011](../decisions/ADR-011-annual-budgets.md)을 따른다.
-예산 변경 승인과 결재 시 예산 경고/차단을 다음 단계에서 구체화한다.
+예산 변경 승인과 결재 시 예산 경고/차단은 [Phase 3F](phase-3f-budget-controls.md)에서 확장한다.

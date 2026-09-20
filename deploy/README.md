@@ -151,5 +151,9 @@ JPEG/PNG/PDF 시그니처·크기 검사와 권한 다운로드를 제공하며 
 
 역할에 `budget.read`를 부여하면 재정 → 연간 예산에서 집계와 이력을 조회한다.
 편성 담당자는 `budget.write`도 필요하며 운영 MFA와 최근 15분 인증을 확인한다. 권한 변경 뒤 재로그인한다.
-저장 즉시 연간 예산에 반영되므로 교회의 승인된 예산 자료를 입력한다. 이번 기능은 결재/지급을 차단하지 않는다.
-`budget_revision`은 PostgreSQL 백업에 포함하며 runtime의 UPDATE/DELETE 권한을 회수한다.
+작성자가 요청하면 다른 `budget.read` + `budget.approve` 담당자의 승인 후 반영된다. 새 승인 권한은 자동 부여하지 않는다.
+재정 설정의 예산 통제는 기본 경고 모드다. `finance.manage` 담당자가 사유를 기록하여 차단 모드로 변경할 수 있다.
+기존 연도 미지정 미지급 결재는 완료하거나 취소 후 명시적 연도로 다시 상신해야 차단 모드로 전환할 수 있다.
+새 지출/수정에는 예산 연도가 필요하며 실제 지급일 연도와 같아야 한다. 송금 전에 예산 상태를 확인한다.
+`budget_revision`, `budget_change`, `budget_decision`, `budget_policy_revision`, `expense_budget_check`는
+PostgreSQL 백업에 포함하며 runtime의 UPDATE/DELETE 권한을 회수한다. 승인/정책 복구는 배포 CI에서 검증한다.

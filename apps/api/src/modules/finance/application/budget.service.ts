@@ -9,10 +9,14 @@ import type {
   BudgetHistoryQuery,
   BudgetLineDto,
 } from '../interface/budget.dto';
+import { BudgetControlService } from './budget-control.service';
 import { budgetAmounts } from '../domain/budget-amounts';
 @Injectable()
 export class BudgetService {
-  constructor(@Inject(FinancePolicy) private readonly p: FinancePolicy) {}
+  constructor(
+    @Inject(FinancePolicy) private readonly p: FinancePolicy,
+    @Inject(BudgetControlService) private readonly control: BudgetControlService,
+  ) {}
   async definitions(a: Actor, c: string) {
     this.p.check(a, c, 'budget.read');
     return {
@@ -54,24 +58,25 @@ export class BudgetService {
         const latest = await tx.budgetRevision.findFirst({ where, orderBy: { version: 'desc' } });
         if ((latest?.version ?? 0) !== d.version) conflict();
         if (latest?.amount.toFixed(0) === d.amount) bad('현재 예산과 같은 금액입니다.');
-        const row = await tx.budgetRevision.create({
+        if (await tx.budgetChange.count({ where: { ...where, decision: null } })) conflict();
+        const row = await tx.budgetChange.create({
           data: {
             ...where,
             amount: d.amount,
-            version: d.version + 1,
+            baseVersion: d.version,
             reason: d.reason.trim(),
-            createdBy: a.userId,
+            requestedBy: a.userId,
           },
         });
         await this.p.audit.record(
           a,
-          'budget.revise',
-          'budget-revision',
+          'budget.request',
+          'budget-change',
           row.id,
           ['year', 'accountId', 'fundId', 'amount', 'reason'],
           tx,
         );
-        return { id: row.id, version: row.version };
+        return { id: row.id, state: 'PENDING' };
       },
       true,
     );
@@ -98,6 +103,13 @@ export class BudgetService {
         WHERE j.church_id=${c}::uuid AND j.posted_on BETWEEN ${from} AND ${to} AND a.kind='EXPENSE'
         ${q.fundId ? Prisma.sql`AND l.fund_id=${q.fundId}::uuid` : Prisma.empty}
         GROUP BY l.account_id,l.fund_id HAVING sum(l.debit-l.credit)<>0`);
+      const commitments = await this.control.commitments(tx, c, q.year, q.fundId);
+      const committedAmounts = new Map(
+        commitments.map((x) => [
+          x.accountId + ':' + x.fundId,
+          BigInt(x._sum.amount?.toFixed(0) ?? '0'),
+        ]),
+      );
       const accounts = new Map(
         (await tx.financeAccount.findMany({ where: { churchId: c, kind: 'EXPENSE' } })).map((x) => [
           x.id,
@@ -129,6 +141,17 @@ export class BudgetService {
         item.actual = BigInt(row.amount.toFixed(0));
         merged.set(key, item);
       }
+      for (const row of commitments) {
+        const key = row.accountId + ':' + row.fundId;
+        if (!merged.has(key))
+          merged.set(key, {
+            accountId: row.accountId,
+            fundId: row.fundId,
+            budget: null,
+            version: 0,
+            actual: 0n,
+          });
+      }
       let budget = 0n,
         actual = 0n;
       const items: BudgetRow[] = [...merged.values()]
@@ -137,7 +160,10 @@ export class BudgetService {
           actual += r.actual;
           const account = accounts.get(r.accountId)!,
             fund = funds.get(r.fundId)!;
+          const committed = committedAmounts.get(r.accountId + ':' + r.fundId) ?? 0n;
           return {
+            committed: String(committed),
+            available: r.budget === null ? null : String(r.budget - r.actual - committed),
             ...budgetAmounts(r.budget, r.actual),
             accountId: r.accountId,
             code: account.code,
@@ -148,7 +174,7 @@ export class BudgetService {
             status:
               r.budget === null
                 ? 'UNBUDGETED'
-                : r.actual > r.budget
+                : r.actual + committed > r.budget
                   ? 'EXCEEDED'
                   : r.budget === 0n
                     ? 'ZERO_BUDGET'

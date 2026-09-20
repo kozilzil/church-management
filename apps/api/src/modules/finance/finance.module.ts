@@ -1,3 +1,5 @@
+import { BudgetControlService } from './application/budget-control.service';
+import { BudgetApprovalService } from './application/budget-approval.service';
 import { BudgetController } from './interface/budget.controller';
 import { BudgetService } from './application/budget.service';
 import { ReportController } from './interface/report.controller';
@@ -26,6 +28,8 @@ import { EvidenceStorage, VolumeEvidenceStorage } from './infrastructure/evidenc
   providers: [
     FinancePolicy,
     BudgetService,
+    BudgetControlService,
+    BudgetApprovalService,
     ReportService,
     OfferingService,
     ReceiptService,
