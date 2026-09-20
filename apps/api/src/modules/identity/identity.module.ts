@@ -1,3 +1,5 @@
+import { ScopeController } from './interface/scope.controller';
+import { DataScopeService } from './application/data-scope.service';
 import { AdminController } from './interface/admin.controller';
 import { PrismaService } from '../../platform/database/prisma.service';
 import { SessionAdapter } from './infrastructure/session.adapter';
@@ -14,9 +16,10 @@ import { IdentityController } from './interface/identity.controller';
 
 @Global()
 @Module({
-  controllers: [IdentityController, AuthController, AdminController],
+  controllers: [ScopeController, IdentityController, AuthController, AdminController],
   providers: [
     AccessService,
+    DataScopeService,
     AuditService,
     LoginService,
     {
@@ -33,6 +36,6 @@ import { IdentityController } from './interface/identity.controller';
     },
     { provide: APP_GUARD, useClass: AccessGuard },
   ],
-  exports: [AccessService, AuditService],
+  exports: [AccessService, AuditService, DataScopeService],
 })
 export class IdentityModule {}

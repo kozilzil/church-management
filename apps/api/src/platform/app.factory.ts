@@ -1,3 +1,4 @@
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -12,8 +13,9 @@ export async function createApplication() {
     !/^[a-f0-9]{64}$/i.test(process.env.MFA_ENCRYPTION_KEY ?? '')
   )
     throw new Error('A valid MFA_ENCRYPTION_KEY is required in production.');
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
 
+  app.useBodyParser('json', { limit: '1mb' });
   app.useLogger(app.get(Logger));
   app.enableShutdownHooks();
   app.use(

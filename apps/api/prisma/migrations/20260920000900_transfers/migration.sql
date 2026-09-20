@@ -1,0 +1,4 @@
+CREATE TABLE member_import (id uuid PRIMARY KEY, church_id uuid NOT NULL, user_id uuid NOT NULL, digest text NOT NULL, rows jsonb NOT NULL, applied_at timestamptz, expires_at timestamptz NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(church_id,user_id,digest), FOREIGN KEY(church_id,user_id) REFERENCES app_user(church_id,id));
+CREATE TABLE member_export (id uuid PRIMARY KEY, church_id uuid NOT NULL, user_id uuid NOT NULL, query text NOT NULL, organization_id uuid, expires_at timestamptz NOT NULL, consumed_at timestamptz, FOREIGN KEY(church_id,user_id) REFERENCES app_user(church_id,id));
+INSERT INTO permission(code) VALUES ('membership.import'),('membership.export');
+INSERT INTO role_permission(role_id,permission_code) SELECT role_id,p.code FROM role_permission r CROSS JOIN (VALUES ('membership.import'),('membership.export')) p(code) WHERE r.permission_code='identity.manage';

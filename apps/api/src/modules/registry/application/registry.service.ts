@@ -1,3 +1,4 @@
+import { DataScopeService } from '../../identity/application/data-scope.service';
 import type { MemberResponse } from '@church/contracts';
 import {
   Inject,
@@ -45,6 +46,7 @@ function conflict(code: string, message: string): never {
 @Injectable()
 export class RegistryService {
   constructor(
+    @Inject(DataScopeService) private readonly scope: DataScopeService,
     @Inject(PrismaService) private readonly db: PrismaService,
     @Inject(AccessService) private readonly access: AccessService,
     @Inject(AuditService) private readonly audit: AuditService,
@@ -57,8 +59,9 @@ export class RegistryService {
     if (!church) missing();
     return effectiveDate(input, church.timezone);
   }
-  private async member(tx: Tx, churchId: string, id: string) {
-    const row = await tx.member.findFirst({ where: { churchId, id } });
+  private async member(tx: Tx, churchId: string, id: string, actor: Actor) {
+    this.check(actor, churchId);
+    const row = await this.scope.member(actor, id, tx);
     if (!row) missing();
     return row;
   }
@@ -104,7 +107,13 @@ export class RegistryService {
     throw new Error('Unreachable');
   }
   async createMember(actor: Actor, churchId: string, input: MemberDto) {
+    if (
+      !actor.permissions.includes('membership.pii') &&
+      (input.phone !== undefined || input.address !== undefined)
+    )
+      await this.scope.deny(actor);
     return this.mutation(actor, churchId, async (tx) => {
+      await this.scope.requireFull(actor, tx);
       if (
         !(await tx.memberStatus.findUnique({
           where: { churchId_code: { churchId, code: input.status } },
@@ -150,8 +159,13 @@ export class RegistryService {
     });
   }
   async updateMember(actor: Actor, churchId: string, id: string, input: ProfileDto) {
+    if (
+      !actor.permissions.includes('membership.pii') &&
+      (input.phone !== undefined || input.address !== undefined)
+    )
+      await this.scope.deny(actor);
     return this.mutation(actor, churchId, async (tx) => {
-      const row = await this.member(tx, churchId, id);
+      const row = await this.member(tx, churchId, id, actor);
       if (row.version !== input.version)
         conflict('VERSION_CONFLICT', '다른 사용자가 수정했습니다. 새로 조회하세요.');
       const updated = await tx.member.update({
@@ -179,7 +193,7 @@ export class RegistryService {
   }
   async changeStatus(actor: Actor, churchId: string, id: string, input: StatusChangeDto) {
     return this.mutation(actor, churchId, async (tx) => {
-      const row = await this.member(tx, churchId, id);
+      const row = await this.member(tx, churchId, id, actor);
       if (row.version !== input.version)
         conflict('VERSION_CONFLICT', '새로 조회 후 다시 시도하세요.');
       const status = await tx.memberStatus.findUnique({
@@ -224,6 +238,7 @@ export class RegistryService {
     const q = normalizedName(input.q ?? '');
     const where: Prisma.MemberWhereInput = {
       churchId,
+      AND: [await this.scope.members(actor)],
       ...(input.cursor ? { id: { gt: input.cursor } } : {}),
       ...(q
         ? {
@@ -255,7 +270,7 @@ export class RegistryService {
   }
   async detail(actor: Actor, churchId: string, id: string) {
     this.check(actor, churchId);
-    const member = await this.member(this.db, churchId, id);
+    const member = await this.member(this.db, churchId, id, actor);
     const [statuses, households, organizations, positions, relations] = await Promise.all([
       this.db.memberStatusHistory.findMany({
         where: { churchId, memberId: id },
@@ -278,20 +293,33 @@ export class RegistryService {
         orderBy: { effectiveFrom: 'asc' },
       }),
     ]);
+    const visibleOrgs = await this.scope.organizations(actor);
+    const visibleHouses = await this.db.household.findMany({
+      where: await this.scope.households(actor),
+      select: { id: true },
+    });
+    const houseIds = new Set(visibleHouses.map((x) => x.id));
     const related = await this.db.member.findMany({
-      where: { churchId, id: { in: relations.map((x) => x.relatedMemberId) } },
+      where: {
+        AND: [
+          await this.scope.members(actor),
+          { id: { in: relations.map((x) => x.relatedMemberId) } },
+        ],
+      },
       select: { id: true, name: true },
     });
     return {
       ...this.memberView(member, actor),
-      relations: relations.map((x) => ({
-        id: x.id,
-        relatedMemberId: x.relatedMemberId,
-        name: related.find((m) => m.id === x.relatedMemberId)?.name,
-        relationship: x.relationship,
-        effectiveFrom: dateString(x.effectiveFrom),
-        effectiveTo: dateString(x.effectiveTo),
-      })),
+      relations: relations
+        .filter((x) => related.some((m) => m.id === x.relatedMemberId))
+        .map((x) => ({
+          id: x.id,
+          relatedMemberId: x.relatedMemberId,
+          name: related.find((m) => m.id === x.relatedMemberId)?.name,
+          relationship: x.relationship,
+          effectiveFrom: dateString(x.effectiveFrom),
+          effectiveTo: dateString(x.effectiveTo),
+        })),
       statusHistory: statuses.map((x) => ({
         id: x.id,
         fromStatus: x.fromStatus,
@@ -299,34 +327,49 @@ export class RegistryService {
         effectiveFrom: dateString(x.effectiveFrom),
         ...(actor.permissions.includes('membership.pii') ? { reason: x.reason } : {}),
       })),
-      households: households.map((x) => ({
-        id: x.id,
-        householdId: x.householdId,
-        relationship: x.relationship,
-        representative: x.representative,
-        effectiveFrom: dateString(x.effectiveFrom),
-        effectiveTo: dateString(x.effectiveTo),
-      })),
-      organizations: organizations.map((x) => ({
-        id: x.id,
-        organizationId: x.organizationId,
-        role: x.role,
-        primary: x.primary,
-        effectiveFrom: dateString(x.effectiveFrom),
-        effectiveTo: dateString(x.effectiveTo),
-      })),
-      positions: positions.map((x) => ({
-        id: x.id,
-        positionId: x.positionId,
-        name: x.positionName,
-        organizationId: x.organizationId,
-        effectiveFrom: dateString(x.effectiveFrom),
-        effectiveTo: dateString(x.effectiveTo),
-      })),
+      households: households
+        .filter((x) => houseIds.has(x.householdId))
+        .map((x) => ({
+          id: x.id,
+          householdId: x.householdId,
+          relationship: x.relationship,
+          representative: x.representative,
+          effectiveFrom: dateString(x.effectiveFrom),
+          effectiveTo: dateString(x.effectiveTo),
+        })),
+      organizations: organizations
+        .filter((x) => visibleOrgs === null || visibleOrgs.includes(x.organizationId))
+        .map((x) => ({
+          id: x.id,
+          organizationId: x.organizationId,
+          role: x.role,
+          primary: x.primary,
+          effectiveFrom: dateString(x.effectiveFrom),
+          effectiveTo: dateString(x.effectiveTo),
+        })),
+      positions: positions
+        .filter(
+          (x) =>
+            !x.organizationId || visibleOrgs === null || visibleOrgs.includes(x.organizationId),
+        )
+        .map((x) => ({
+          id: x.id,
+          positionId: x.positionId,
+          name: x.positionName,
+          organizationId: x.organizationId,
+          effectiveFrom: dateString(x.effectiveFrom),
+          effectiveTo: dateString(x.effectiveTo),
+        })),
     };
   }
   async createHousehold(actor: Actor, churchId: string, input: HouseholdDto) {
+    if (
+      !actor.permissions.includes('membership.pii') &&
+      (input.phone !== undefined || input.address !== undefined)
+    )
+      await this.scope.deny(actor);
     return this.mutation(actor, churchId, async (tx) => {
+      await this.scope.requireFull(actor, tx);
       const row = await tx.household.create({
         data: {
           churchId,
@@ -342,7 +385,10 @@ export class RegistryService {
   async listHouseholds(actor: Actor, churchId: string, input: ListDto) {
     this.check(actor, churchId);
     const rows = await this.db.household.findMany({
-      where: { churchId, ...(input.cursor ? { id: { gt: input.cursor } } : {}) },
+      where: {
+        AND: [await this.scope.households(actor)],
+        ...(input.cursor ? { id: { gt: input.cursor } } : {}),
+      },
       orderBy: { id: 'asc' },
       take: (input.limit ?? 30) + 1,
     });
@@ -354,9 +400,14 @@ export class RegistryService {
           name: x.name,
           archived: !!x.archivedAt,
           activeMembers: await this.db.householdMembership.count({
-            where: { churchId, householdId: x.id, effectiveTo: null },
+            where: {
+              churchId,
+              householdId: x.id,
+              effectiveTo: null,
+              member: await this.scope.members(actor),
+            },
           }),
-          ...(actor.permissions.includes('membership.pii')
+          ...(actor.permissions.includes('membership.pii') && (await this.scope.full(actor))
             ? { phone: x.phone, address: x.address }
             : {}),
         })),
@@ -366,7 +417,8 @@ export class RegistryService {
   }
   async moveHousehold(actor: Actor, churchId: string, input: MoveDto) {
     return this.mutation(actor, churchId, async (tx) => {
-      const member = await this.member(tx, churchId, input.memberId);
+      await this.scope.requireFull(actor, tx);
+      const member = await this.member(tx, churchId, input.memberId, actor);
       const household = await tx.household.findFirst({
         where: { churchId, id: input.householdId, archivedAt: null },
       });
@@ -408,6 +460,7 @@ export class RegistryService {
   }
   async representative(actor: Actor, churchId: string, id: string, memberId: string) {
     return this.mutation(actor, churchId, async (tx) => {
+      await this.scope.requireFull(actor, tx);
       const row = await tx.householdMembership.findFirst({
         where: { churchId, householdId: id, memberId, effectiveTo: null },
       });
@@ -433,6 +486,7 @@ export class RegistryService {
   }
   async archiveHousehold(actor: Actor, churchId: string, id: string) {
     return this.mutation(actor, churchId, async (tx) => {
+      await this.scope.requireFull(actor, tx);
       if (!(await tx.household.findFirst({ where: { churchId, id } }))) missing();
       if (
         await tx.householdMembership.count({
@@ -447,7 +501,12 @@ export class RegistryService {
   }
   async householdAt(actor: Actor, churchId: string, id: string, at?: string) {
     this.check(actor, churchId);
-    if (!(await this.db.household.findFirst({ where: { id, churchId } }))) missing();
+    if (
+      !(await this.db.household.findFirst({
+        where: { AND: [await this.scope.households(actor), { id }] },
+      }))
+    )
+      missing();
     let date: Date | undefined;
     if (at) {
       try {
@@ -462,6 +521,7 @@ export class RegistryService {
       where: {
         churchId,
         householdId: id,
+        member: await this.scope.members(actor),
         ...(date
           ? {
               effectiveFrom: { lte: date },
@@ -489,6 +549,7 @@ export class RegistryService {
   }
   async createOrganization(actor: Actor, churchId: string, input: OrganizationDto) {
     return this.mutation(actor, churchId, async (tx) => {
+      await this.scope.requireFull(actor, tx);
       if (
         input.parentId &&
         !(await tx.organization.findFirst({
@@ -514,6 +575,7 @@ export class RegistryService {
   }
   async moveOrganization(actor: Actor, churchId: string, id: string, parentId: string | null) {
     return this.mutation(actor, churchId, async (tx) => {
+      await this.scope.requireFull(actor, tx);
       if (!(await tx.organization.findFirst({ where: { churchId, id, closedOn: null } })))
         missing();
       let cursor = parentId;
@@ -534,6 +596,7 @@ export class RegistryService {
   }
   async closeOrganization(actor: Actor, churchId: string, id: string, dateInput: string) {
     return this.mutation(actor, churchId, async (tx) => {
+      await this.scope.requireFull(actor, tx);
       if (!(await tx.organization.findFirst({ where: { churchId, id, closedOn: null } })))
         missing();
       if (
@@ -564,9 +627,16 @@ export class RegistryService {
   }
   async listOrganizations(actor: Actor, churchId: string, input: ListDto) {
     this.check(actor, churchId);
+    const allowed = await this.scope.organizations(actor);
     const limit = input.limit ?? 30;
     const rows = await this.db.organization.findMany({
-      where: { churchId, ...(input.cursor ? { id: { gt: input.cursor } } : {}) },
+      where: {
+        churchId,
+        id: {
+          ...(allowed === null ? {} : { in: allowed }),
+          ...(input.cursor ? { gt: input.cursor } : {}),
+        },
+      },
       orderBy: { id: 'asc' },
       take: limit + 1,
     });
@@ -575,7 +645,7 @@ export class RegistryService {
         id: x.id,
         name: x.name,
         type: x.type,
-        parentId: x.parentId,
+        parentId: allowed === null || allowed.includes(x.parentId ?? '') ? x.parentId : null,
         closedOn: dateString(x.closedOn),
       })),
       nextCursor: rows.length > limit ? rows[limit - 1]!.id : null,
@@ -583,7 +653,8 @@ export class RegistryService {
   }
   async affiliate(actor: Actor, churchId: string, input: AffiliationDto) {
     return this.mutation(actor, churchId, async (tx) => {
-      const member = await this.member(tx, churchId, input.memberId);
+      await this.scope.requireFull(actor, tx);
+      const member = await this.member(tx, churchId, input.memberId, actor);
       if (
         !(await tx.organization.findFirst({
           where: { churchId, id: input.organizationId, closedOn: null },
@@ -602,6 +673,7 @@ export class RegistryService {
   }
   async endAffiliation(actor: Actor, churchId: string, id: string, dateInput: string) {
     return this.mutation(actor, churchId, async (tx) => {
+      await this.scope.requireFull(actor, tx);
       const row = await tx.organizationMembership.findFirst({
         where: { churchId, id, effectiveTo: null },
       });
@@ -615,6 +687,7 @@ export class RegistryService {
   }
   async savePosition(actor: Actor, churchId: string, input: PositionDto, id?: string) {
     return this.mutation(actor, churchId, async (tx) => {
+      await this.scope.requireFull(actor, tx);
       if (id && !(await tx.position.findFirst({ where: { churchId, id } }))) missing();
       if (id && !input.allowConcurrent) {
         const duplicates = await tx.positionAppointment.groupBy({
@@ -660,7 +733,8 @@ export class RegistryService {
   }
   async appoint(actor: Actor, churchId: string, input: AppointmentDto) {
     return this.mutation(actor, churchId, async (tx) => {
-      const member = await this.member(tx, churchId, input.memberId);
+      await this.scope.requireFull(actor, tx);
+      const member = await this.member(tx, churchId, input.memberId, actor);
       const position = await tx.position.findFirst({
         where: { churchId, id: input.positionId, active: true },
       });
@@ -703,6 +777,7 @@ export class RegistryService {
   }
   async endAppointment(actor: Actor, churchId: string, id: string, dateInput: string) {
     return this.mutation(actor, churchId, async (tx) => {
+      await this.scope.requireFull(actor, tx);
       const row = await tx.positionAppointment.findFirst({
         where: { churchId, id, effectiveTo: null },
       });
@@ -730,6 +805,7 @@ export class RegistryService {
   async saveStatus(actor: Actor, churchId: string, input: StatusDefinitionDto) {
     this.access.require(actor, churchId, 'identity.manage');
     return this.mutation(actor, churchId, async (tx) => {
+      await this.scope.requireFull(actor, tx);
       await tx.memberStatus.upsert({
         where: { churchId_code: { churchId, code: input.code } },
         create: { churchId, code: input.code, label: input.name, allowedNext: input.allowedNext },
@@ -742,6 +818,7 @@ export class RegistryService {
   async saveOrganizationType(actor: Actor, churchId: string, input: CodeDto) {
     this.access.require(actor, churchId, 'identity.manage');
     return this.mutation(actor, churchId, async (tx) => {
+      await this.scope.requireFull(actor, tx);
       await tx.organizationType.upsert({
         where: { churchId_code: { churchId, code: input.code } },
         create: { churchId, code: input.code, name: input.name },
@@ -760,6 +837,7 @@ export class RegistryService {
   }
   async auditEvents(actor: Actor, churchId: string, input: ListDto) {
     this.access.require(actor, churchId, 'audit.read');
+    await this.scope.requireFull(actor);
     const limit = input.limit ?? 30;
     const rows = await this.db.auditEvent.findMany({
       where: { churchId, ...(input.cursor ? { id: { gt: input.cursor } } : {}) },
@@ -784,8 +862,8 @@ export class RegistryService {
   }
   async addRelation(actor: Actor, churchId: string, id: string, input: RelationDto) {
     return this.mutation(actor, churchId, async (tx) => {
-      await this.member(tx, churchId, id);
-      await this.member(tx, churchId, input.relatedMemberId);
+      await this.member(tx, churchId, id, actor);
+      await this.member(tx, churchId, input.relatedMemberId, actor);
       if (id === input.relatedMemberId)
         throw new PolicyError('SELF_RELATION', '자기 자신과 가족 관계를 만들 수 없습니다.');
       const date = await this.date(tx, churchId, input.effectiveFrom);
@@ -806,6 +884,8 @@ export class RegistryService {
     return this.mutation(actor, churchId, async (tx) => {
       const row = await tx.memberRelation.findFirst({ where: { id, churchId, effectiveTo: null } });
       if (!row) missing();
+      await this.scope.member(actor, row.memberId, tx);
+      await this.scope.member(actor, row.relatedMemberId, tx);
       const date = await this.date(tx, churchId, dateInput);
       requireAfter(row.effectiveFrom, date);
       await tx.memberRelation.update({ where: { id }, data: { effectiveTo: date } });

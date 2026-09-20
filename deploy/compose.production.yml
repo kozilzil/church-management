@@ -4,6 +4,7 @@ x-logging: &logging
   options: { max-size: '10m', max-file: '3' }
 x-api-env: &api-env
   NODE_ENV: production
+  CARE_ENCRYPTION_KEY: ${CARE_ENCRYPTION_KEY:-}
   MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?required}
   DATABASE_URL: postgresql://church_runtime:${POSTGRES_RUNTIME_PASSWORD:?required}@postgres:5432/${POSTGRES_DB:-church_management}?schema=public
   CORS_ORIGIN: ${APP_BASE_URL:?required}

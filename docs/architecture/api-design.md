@@ -86,3 +86,24 @@ APP_BASE_URL과 같아야 한다. 로그인 후 변경 요청은 cookie와 응�
 목록 limit은 1–100, 기본 30이며 nextCursor로 이어 조회한다. 교인 이름/번호와 허용된 경우
 전화번호를 검색한다. 회원이 적은 초기에는 contains 검색을 사용하며 대규모 배포 전 query plan과
 trigram index를 검증한다. 재정/목양 권한은 현재 교적 권한에 포함하지 않는다.
+
+## 데이터 범위와 교적 운영 API
+
+교회 기준 경로 아래:
+
+- `GET/PUT /identity/users/:id/scope`: mode, memberId, organizations[{organizationId,descendants}]. 관리자 자신은 변경 불가.
+- `POST /transfers/imports/preview`: csv와 mapping. 결과 batchId/errors/candidates/rows.
+- `POST /transfers/imports/:id/apply`: 미리보기 실행; 재실행은 replayed=true.
+- `POST /transfers/exports`, `POST /transfers/exports/:id/download`: q/선택 organizationId, 10분·1회, JSON 내 csv/filename/count.
+- `GET/POST /operations/gatherings`, `GET/POST /operations/gatherings/:id/sessions`.
+- `GET/POST /operations/sessions/:id/attendance`: records[{memberId,status,version}], source MANUAL/BULK; 최초 version=0.
+- `GET /operations/attendance/:id/history`, `/operations/attendance-summary?from=YYYY-MM-DD&to=YYYY-MM-DD&gatheringId=...`.
+- `GET/POST /operations/newcomer-stages`, `PATCH /operations/newcomer-stages/:id`.
+- `GET/POST /operations/newcomers`, `PATCH /operations/newcomers/:id`, `GET /operations/newcomers/:id/history`.
+- `GET/POST /operations/care`, `PATCH /operations/care/:id`, `GET /operations/care/:id/history`.
+- `GET/PUT /operations/care-policy`, `GET /operations/care-roles`, `GET/POST /operations/care/:id/notes`.
+- `GET /operations/assignees`: 활성 담당자 선택. 제한 사용자는 본인만; 전체 교회 사용자는 최대 100명.
+
+운영 목록은 cursor/limit(기본 30, 최대 100)을 사용한다. 새가족·목양 목록은 state=open/completed/overdue/all과
+assigneeId를 지원한다. profile/출석/새가족/목양 변경은 해당 version을 요구한다. 새가족 dueOn과 목양 followUpOn은
+명시적 null로 예정일을 지운다. timestamp는 timezone을 포함한 ISO 문자열이다.

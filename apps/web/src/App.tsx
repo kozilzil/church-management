@@ -1,3 +1,8 @@
+import { CarePanel } from './CarePanel';
+import { NewcomerPanel } from './NewcomerPanel';
+import { AttendancePanel } from './AttendancePanel';
+import { TransferPanel } from './TransferPanel';
+import { ScopePanel } from './ScopePanel';
 import type {
   SessionResponse as Session,
   MemberResponse as Member,
@@ -157,6 +162,7 @@ export function App() {
   const [mfaSecret, setMfaSecret] = useState('');
   const refresh = () => setRevision((x) => x + 1);
   const can = (p: string) => session?.permissions.includes(p);
+  const full = session?.scopeMode === 'ALL';
   const root = session ? `/churches/${session.churchId}` : '';
   async function loadSession() {
     const result = await api<Session>('/auth/me');
@@ -325,17 +331,22 @@ export function App() {
           ['positions', '직분'],
           ['audit', '감사 기록'],
           ['admin', '계정·권한'],
+          ['care', '심방·목양'],
+          ['newcomers', '새가족'],
+          ['attendance', '모임·출석'],
+          ['transfers', '가져오기·내보내기'],
           ['account', '내 계정'],
         ]
-          .filter(
-            ([key]) =>
-              key === 'account' ||
-              (key === 'audit'
-                ? can('audit.read')
-                : key === 'admin'
-                  ? can('identity.manage')
-                  : can('membership.read')),
-          )
+          .filter(([key]) => {
+            if (key === 'account') return true;
+            if (key === 'attendance') return can('attendance.read');
+            if (key === 'newcomers') return can('newcomer.read');
+            if (key === 'care') return can('care.read');
+            if (key === 'transfers') return can('membership.import') || can('membership.export');
+            if (key === 'audit') return can('audit.read') && session.scopeMode === 'ALL';
+            if (key === 'admin') return can('identity.manage') && session.scopeMode === 'ALL';
+            return can('membership.read');
+          })
           .map(([key, label]) => (
             <button
               className={tab === key ? 'active' : 'secondary'}
@@ -413,7 +424,7 @@ export function App() {
               </button>
             </div>
           </section>
-          {can('membership.write') && (
+          {full && can('membership.write') && (
             <Form
               title="교인 등록"
               fields={[
@@ -421,8 +432,12 @@ export function App() {
                 { name: 'name', label: '이름' },
                 { name: 'registeredOn', label: '등록일', type: 'date', value: today() },
                 { name: 'status', label: '교적 상태', type: 'select', options: statusChoices },
-                { name: 'phone', label: '연락처 (선택)', optional: true },
-                { name: 'address', label: '주소 (선택)', optional: true },
+                ...(can('membership.pii')
+                  ? [
+                      { name: 'phone', label: '연락처 (선택)', optional: true },
+                      { name: 'address', label: '주소 (선택)', optional: true },
+                    ]
+                  : []),
               ]}
               submit={async (d) => {
                 await mutate('/members', d);
@@ -503,6 +518,7 @@ export function App() {
                         · {x.effectiveFrom} ~ {x.effectiveTo ?? '현재'}{' '}
                         {x.relationship ?? x.role ?? ''}
                         {!x.effectiveTo &&
+                          full &&
                           can('membership.write') &&
                           (label === '조직 소속' || label === '직분') && (
                             <Form
@@ -582,61 +598,68 @@ export function App() {
                       });
                     }}
                   />
-                  <Form
-                    title="가족 배정·이동"
-                    fields={[
-                      {
-                        name: 'householdId',
-                        label: '가족',
-                        type: 'select',
-                        options: named(households.filter((x) => !x.archived)),
-                      },
-                      { name: 'relationship', label: '가족 내 관계' },
-                      { name: 'effectiveFrom', label: '시작일', type: 'date', value: today() },
-                    ]}
-                    submit={async (d) => {
-                      await mutate('/household-moves', { ...d, memberId: selected.id });
-                    }}
-                  />
-                  <Form
-                    title="조직 소속 등록"
-                    fields={[
-                      {
-                        name: 'organizationId',
-                        label: '조직',
-                        type: 'select',
-                        options: named(organizations.filter((x) => !x.closedOn)),
-                      },
-                      { name: 'role', label: '역할' },
-                      { name: 'primary', label: '주 소속', type: 'checkbox' },
-                      { name: 'effectiveFrom', label: '시작일', type: 'date', value: today() },
-                    ]}
-                    submit={async (d) => {
-                      await mutate('/organization-memberships', { ...d, memberId: selected.id });
-                    }}
-                  />
-                  <Form
-                    title="직분 임명"
-                    fields={[
-                      {
-                        name: 'positionId',
-                        label: '직분',
-                        type: 'select',
-                        options: named(positions.filter((x) => x.active)),
-                      },
-                      {
-                        name: 'organizationId',
-                        label: '임명 조직 (선택)',
-                        type: 'select',
-                        optional: true,
-                        options: named(organizations.filter((x) => !x.closedOn)),
-                      },
-                      { name: 'effectiveFrom', label: '임명일', type: 'date', value: today() },
-                    ]}
-                    submit={async (d) => {
-                      await mutate('/position-appointments', { ...d, memberId: selected.id });
-                    }}
-                  />
+                  {full && (
+                    <>
+                      <Form
+                        title="가족 배정·이동"
+                        fields={[
+                          {
+                            name: 'householdId',
+                            label: '가족',
+                            type: 'select',
+                            options: named(households.filter((x) => !x.archived)),
+                          },
+                          { name: 'relationship', label: '가족 내 관계' },
+                          { name: 'effectiveFrom', label: '시작일', type: 'date', value: today() },
+                        ]}
+                        submit={async (d) => {
+                          await mutate('/household-moves', { ...d, memberId: selected.id });
+                        }}
+                      />
+                      <Form
+                        title="조직 소속 등록"
+                        fields={[
+                          {
+                            name: 'organizationId',
+                            label: '조직',
+                            type: 'select',
+                            options: named(organizations.filter((x) => !x.closedOn)),
+                          },
+                          { name: 'role', label: '역할' },
+                          { name: 'primary', label: '주 소속', type: 'checkbox' },
+                          { name: 'effectiveFrom', label: '시작일', type: 'date', value: today() },
+                        ]}
+                        submit={async (d) => {
+                          await mutate('/organization-memberships', {
+                            ...d,
+                            memberId: selected.id,
+                          });
+                        }}
+                      />
+                      <Form
+                        title="직분 임명"
+                        fields={[
+                          {
+                            name: 'positionId',
+                            label: '직분',
+                            type: 'select',
+                            options: named(positions.filter((x) => x.active)),
+                          },
+                          {
+                            name: 'organizationId',
+                            label: '임명 조직 (선택)',
+                            type: 'select',
+                            optional: true,
+                            options: named(organizations.filter((x) => !x.closedOn)),
+                          },
+                          { name: 'effectiveFrom', label: '임명일', type: 'date', value: today() },
+                        ]}
+                        submit={async (d) => {
+                          await mutate('/position-appointments', { ...d, memberId: selected.id });
+                        }}
+                      />
+                    </>
+                  )}
                 </div>
               )}
             </section>
@@ -658,7 +681,7 @@ export function App() {
                   {h.name}
                 </button>
                 <span>{h.archived ? '보관됨' : `${h.activeMembers}명`}</span>
-                {can('membership.write') && !h.archived && h.activeMembers === 0 && (
+                {full && can('membership.write') && !h.archived && h.activeMembers === 0 && (
                   <button
                     className="secondary"
                     onClick={() =>
@@ -673,13 +696,17 @@ export function App() {
               </div>
             ))}
           </section>
-          {can('membership.write') && (
+          {full && can('membership.write') && (
             <Form
               title="가족 만들기"
               fields={[
                 { name: 'name', label: '가족 이름' },
-                { name: 'phone', label: '공통 연락처', optional: true },
-                { name: 'address', label: '공통 주소', optional: true },
+                ...(can('membership.pii')
+                  ? [
+                      { name: 'phone', label: '공통 연락처', optional: true },
+                      { name: 'address', label: '공통 주소', optional: true },
+                    ]
+                  : []),
               ]}
               submit={async (d) => {
                 await mutate('/households', d);
@@ -710,7 +737,7 @@ export function App() {
                   </li>
                 ))}
               </ul>
-              {can('membership.write') && (
+              {full && can('membership.write') && (
                 <Form
                   title="대표자 지정"
                   fields={[
@@ -755,7 +782,7 @@ export function App() {
                     ? ` / ${organizations.find((x) => x.id === o.parentId)?.name ?? '상위 조직'}`
                     : ''}
                 </summary>
-                {can('membership.write') && !o.closedOn && (
+                {full && can('membership.write') && !o.closedOn && (
                   <div className="grid">
                     <Form
                       title="상위 조직 변경"
@@ -788,7 +815,7 @@ export function App() {
               </details>
             ))}
           </section>
-          {can('membership.write') && (
+          {full && can('membership.write') && (
             <Form
               title="조직 만들기"
               fields={[
@@ -833,7 +860,7 @@ export function App() {
                   <summary>
                     {p.name} · {p.active ? '사용 중' : '비활성'}
                   </summary>
-                  {can('membership.write') && (
+                  {full && can('membership.write') && (
                     <Form
                       title="직분 설정"
                       fields={[
@@ -865,7 +892,7 @@ export function App() {
                 </details>
               ))}
           </section>
-          {can('membership.write') && (
+          {full && can('membership.write') && (
             <Form
               title="직분 만들기"
               fields={[
@@ -916,9 +943,15 @@ export function App() {
         <>
           <section className="panel">
             <h2>계정과 역할</h2>
+            <ScopePanel
+              root={root}
+              users={admin.users.filter((u) => u.id !== session.userId)}
+              organizations={organizations}
+              members={members}
+            />
             <p>
-              권한 변경은 로그인 후 15분 이내에 가능합니다. 새 계정은 역할 부여 후 업무에 접근할 수
-              있습니다.
+              권한 변경은 로그인 후 15분 이내에 가능합니다. 새 계정은 역할과 데이터 범위 지정 후
+              업무에 접근할 수 있습니다.
             </p>
             {admin.users.map((u) => (
               <p key={u.id}>
@@ -1005,6 +1038,30 @@ export function App() {
           </div>
         </>
       )}
+      {tab === 'care' && (
+        <CarePanel
+          root={root}
+          userId={session.userId}
+          permissions={session.permissions}
+          full={session.scopeMode === 'ALL'}
+          households={households}
+        />
+      )}
+      {tab === 'newcomers' && (
+        <NewcomerPanel
+          root={root}
+          canWrite={!!can('newcomer.write')}
+          canConfigure={!!can('identity.manage') && session.scopeMode === 'ALL'}
+        />
+      )}
+      {tab === 'attendance' && (
+        <AttendancePanel
+          root={root}
+          canWrite={!!can('attendance.write')}
+          organizations={organizations}
+        />
+      )}
+      {tab === 'transfers' && <TransferPanel root={root} permissions={session.permissions} />}
       {tab === 'account' && (
         <div className="grid">
           <Form

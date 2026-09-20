@@ -1,3 +1,5 @@
+import { MaintenanceService } from './platform/maintenance.service';
+import { OperationsModule } from './modules/operations/operations.module';
 import { RegistryModule } from './modules/registry/registry.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { Module } from '@nestjs/common';
@@ -8,6 +10,7 @@ import { PrismaModule } from './platform/database/prisma.module';
 import { createHttpLoggerOptions } from './platform/logging/http-logger.config';
 
 @Module({
+  providers: [MaintenanceService],
   imports: [
     LoggerModule.forRoot({
       pinoHttp: createHttpLoggerOptions(),
@@ -16,6 +19,7 @@ import { createHttpLoggerOptions } from './platform/logging/http-logger.config';
     HealthModule,
     IdentityModule,
     RegistryModule,
+    OperationsModule,
   ],
 })
 export class AppModule {}

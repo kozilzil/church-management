@@ -48,3 +48,16 @@ DB/업로드 보존·backup·restore 및 덮어쓰기 거부를 검사한다. �
 운영 API는 `church_runtime`이라는 비소유자 DB role을 사용한다. migration/backup은 별도
 DB owner 계정을 사용한다. 배포 시 runtime 권한을 갱신하며 감사·상태 이력의 UPDATE/DELETE와
 기간 이력의 DELETE 권한을 제거한다. 애플리케이션 계정에는 schema 변경·TRUNCATE 권한을 주지 않는다.
+
+## Phase 2 업그레이드와 목양 메모
+
+008–012 migration과 신규 감사 이력 테이블이 추가됐다. 기존 사용자는 전체 교회 범위를 유지한다.
+업그레이드 후 계정·권한에서 담당자 범위를 검토하고 필요에 맞게 좁힌다. 새 계정의 기본 범위는 접근 없음이다.
+기존 identity.manage 역할에는 새 운영 권한이 추가되며 다른 역할은 관리자가 별도로 부여한다.
+
+민감 메모는 초기 비활성이다. 실제 보존·파기 정책을 확정한 뒤 별도 무작위 `CARE_ENCRYPTION_KEY`(64 hex)를
+환경 파일에 설정하고 재배포한다. UI에서 정책 문서와 보존 일수를 설정하고 활성화한다. MFA 키와 재사용하지 않는다.
+키는 DB 백업과 별도로 안전하게 보존하며, 키 분실 시 메모를 복호화할 수 없다. 백업 보존·파기도 같은 정책에 맞춘다.
+앱 기동 시와 매시간 만료 메모 암호문과 임시 이전 자료를 정리한다. 실패는 본문 없이 서버 로그에 기록한다.
+수동 메모 파기는 `./deploy/purge-care-notes.sh` 또는 개발 환경 `pnpm care:purge`를 사용한다.
+운영 DB role은 attendance_change/newcomer_change/care_change의 UPDATE/DELETE와 care_note의 DELETE 권한이 없다.

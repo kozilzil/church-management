@@ -59,11 +59,13 @@ export class AuthController {
     response.setHeader('Cache-Control', 'no-store');
     const user = await this.db.user.findUniqueOrThrow({
       where: { id: request.actor.userId },
-      select: { username: true, totpEnabled: true },
+      select: { username: true, totpEnabled: true, scopeMode: true, memberId: true },
     });
     return {
       ...request.actor,
       username: user.username,
+      scopeMode: user.scopeMode,
+      memberId: user.memberId,
       totpEnabled: user.totpEnabled,
       csrfToken: csrfToken(sessionToken(request)),
     };

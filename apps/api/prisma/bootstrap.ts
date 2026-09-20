@@ -3,6 +3,16 @@ import { hashPassword } from '../src/modules/identity/infrastructure/password';
 const db = new PrismaClient();
 export const permissions = [
   'session.read',
+  'care.read',
+  'care.write',
+  'care.notes',
+  'care.policy',
+  'newcomer.read',
+  'newcomer.write',
+  'attendance.read',
+  'attendance.write',
+  'membership.import',
+  'membership.export',
   'identity.read',
   'identity.manage',
   'membership.read',
@@ -41,7 +51,9 @@ async function main() {
         permissions: { create: permissions.map((permissionCode) => ({ permissionCode })) },
       },
     });
-    const user = await tx.user.create({ data: { churchId: church.id, username, passwordHash } });
+    const user = await tx.user.create({
+      data: { churchId: church.id, username, passwordHash, scopeMode: 'ALL' },
+    });
     await tx.userRole.create({ data: { churchId: church.id, userId: user.id, roleId: role.id } });
     await tx.memberStatus.createMany({
       data: statuses.map((x) => ({ ...x, churchId: church.id })),

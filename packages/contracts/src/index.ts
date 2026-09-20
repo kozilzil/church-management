@@ -62,6 +62,8 @@ export interface MemberResponse {
   relations?: MembershipPeriod[];
 }
 export interface SessionResponse {
+  scopeMode?: string;
+  memberId?: string | null;
   churchId: string;
   userId: string;
   username: string;
