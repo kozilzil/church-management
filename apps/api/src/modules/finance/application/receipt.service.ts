@@ -43,7 +43,7 @@ export class ReceiptService {
       true,
     );
   }
-  private async eligible(tx: Tx, c: string, d: ReceiptPreviewDto, ids?: string[]) {
+  async eligible(tx: Tx, c: string, d: ReceiptPreviewDto, ids?: string[]) {
     const donor = await tx.offeringDonor.findFirst({ where: { churchId: c, id: d.donorId } });
     if (!donor) missing();
     const issuer = await tx.receiptIssuer.findUnique({ where: { churchId: c } });

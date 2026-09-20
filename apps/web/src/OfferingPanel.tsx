@@ -1,3 +1,4 @@
+import { HometaxPanel } from './HometaxPanel';
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from './api';
 import { OperationForm } from './OperationForm';
@@ -32,7 +33,7 @@ type Offering = {
   editedBy: string;
   reversed?: boolean;
   reversal?: { reason: string };
-  receiptClaim?: { receiptId: string };
+  receiptClaim?: { receiptId: string | null; hometaxItemId?: string | null };
   events?: { id: string; action: string; reason: string; createdAt: string }[];
 };
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
@@ -128,12 +129,14 @@ export function OfferingPanel({
       <nav aria-label="헌금 업무">
         {can('offering.read') && <button onClick={() => setMode('offerings')}>개별 헌금</button>}
         {can('receipt.read') && <button onClick={() => setMode('receipts')}>기부금영수증</button>}
+        {can('receipt.read') && <button onClick={() => setMode('hometax')}>홈택스 연동</button>}
         {can('finance.manage') && (
           <button onClick={() => setMode('settings')}>헌금·발급 설정</button>
         )}
       </nav>
       {mode === 'offerings' && <OfferingEntries base={base} can={can} userId={userId} />}
       {mode === 'receipts' && <ReceiptPanel base={base} can={can} />}
+      {mode === 'hometax' && <HometaxPanel base={base} can={can} />}
       {mode === 'settings' && <OfferingSettings base={base} />}
     </section>
   );
@@ -531,7 +534,10 @@ function OfferingEntries({
             />
           )}
           {selected.receiptClaim && (
-            <p>발급된 영수증에 포함되어 있습니다. 정정 전에 영수증을 취소하세요.</p>
+            <p>
+              영수증 발급 또는 홈택스 제출 준비에 포함되어 있습니다. 정정 전에 발급 취소·미발급
+              여부를 확인하세요.
+            </p>
           )}
           {selected.state === 'POSTED' && !selected.reversal && can('offering.reverse') && (
             <OperationForm

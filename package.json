@@ -13,7 +13,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "pnpm -r --if-present lint",
-    "postinstall": "pnpm db:generate",
+    "postinstall": "pnpm --filter @church/contracts build && pnpm db:generate",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
     "db:generate": "node scripts/with-env.mjs pnpm --filter @church/api prisma:generate",

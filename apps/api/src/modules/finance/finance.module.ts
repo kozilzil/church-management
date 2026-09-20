@@ -1,4 +1,6 @@
 import { RegistryModule } from '../registry/registry.module';
+import { HometaxController } from './interface/hometax.controller';
+import { HometaxService } from './application/hometax.service';
 import { OfferingController } from './interface/offering.controller';
 import { OfferingService } from './application/offering.service';
 import { ReceiptService } from './application/receipt.service';
@@ -10,11 +12,12 @@ import { ExpenseService } from './application/expense.service';
 import { EvidenceStorage, VolumeEvidenceStorage } from './infrastructure/evidence-storage';
 @Module({
   imports: [RegistryModule],
-  controllers: [FinanceController, OfferingController],
+  controllers: [FinanceController, OfferingController, HometaxController],
   providers: [
     FinancePolicy,
     OfferingService,
     ReceiptService,
+    HometaxService,
     LedgerService,
     ExpenseService,
     { provide: EvidenceStorage, useClass: VolumeEvidenceStorage },

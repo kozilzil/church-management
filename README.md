@@ -138,7 +138,8 @@ church-management/
 - [x] 조직별 범위, CSV 이전, 출석·새가족·심방 구현 (민감 메모는 정책 설정 후 활성화)
 - [x] 요청자 지정 지출 결재선·증빙 첨부·수동 지급·균형 분개·기간 마감·역분개
 - [x] 개별 헌금 입력·검수·회계 반영 및 자체 기부금영수증 발급·인쇄·취소
-- [ ] 헌금 배치·예산·결산·홈택스 연동 확장
+- [x] 홈택스 전산매체 파일 생성·건별 발급/미발급/취소 확인
+- [ ] 헌금 배치·예산·결산 확장
 
 ## 라이선스
 
@@ -184,3 +185,8 @@ MFA 등록에는 루트 `.env`의 `MFA_ENCRYPTION_KEY`(64자리 무작위 hex)�
 ## 헌금과 기부금영수증
 
 [단건 헌금·영수증 요구사항](docs/requirements/07-offerings-receipts.md), [개발 항목](docs/tasks/phase-3-offerings-receipts.md), [운영 설정](deploy/README.md)을 참고하세요.
+
+## 홈택스 연동
+
+[파일 연동 요구사항](docs/requirements/08-hometax.md), [개발 항목](docs/tasks/phase-3-hometax.md), [운영 설정](deploy/README.md)을 참고하세요.
+자동 전송 대신 공식 전산매체 파일을 생성하며, 담당자가 홈택스에서 제출하고 결과를 대조합니다.
