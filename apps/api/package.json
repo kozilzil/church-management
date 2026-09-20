@@ -16,7 +16,7 @@
     "prisma:reset": "prisma migrate reset --force",
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:validate": "prisma validate",
-    "test:integration": "RUN_DB_TESTS=1 vitest run test/database.integration.spec.ts test/workflows.integration.spec.ts"
+    "test:integration": "RUN_DB_TESTS=1 vitest run test/database.integration.spec.ts test/workflows.integration.spec.ts test/finance.integration.spec.ts"
   },
   "dependencies": {
     "@church/contracts": "workspace:*",

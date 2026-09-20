@@ -107,3 +107,22 @@ trigram index를 검증한다. 재정/목양 권한은 현재 교적 권한에 �
 운영 목록은 cursor/limit(기본 30, 최대 100)을 사용한다. 새가족·목양 목록은 state=open/completed/overdue/all과
 assigneeId를 지원한다. profile/출석/새가족/목양 변경은 해당 version을 요구한다. 새가족 dueOn과 목양 followUpOn은
 명시적 null로 예정일을 지운다. timestamp는 timezone을 포함한 ISO 문자열이다.
+
+## 지출 결재·재정 (Phase 3A)
+
+접두 경로: `/churches/:churchId/finance`.
+
+- `GET definitions`, `approvers` (결재자 cursor/limit), `settings`, `ledger-definitions`: 업무별 기준정보 권한 분리.
+- `POST accounts`, `funds`, `periods`: 계정·기금·열린 회계기간 생성. `POST periods/:id/close`: 마감.
+- `GET/POST expenses`, `GET/PATCH expenses/:id`: 접근 가능한 목록·초안·상세. 목록 state=mine/review/pay/all 또는 업무 상태.
+- `POST expenses/:id/submit`, `decisions`, `cancel`, `payment`: version 필수. decisions는 APPROVED/REJECTED와 의견/사유를 받는다.
+- `GET expenses/:id/history`, `submissions/:round`: 변경 이력과 원본 제출 회차. 상세는 최근 10개 회차, 이전 회차는 개별 조회.
+- `POST expenses/:id/attachments?version=N`: multipart/form-data의 file 하나. JPEG/PNG/PDF, 최대 10 MiB.
+- `GET/DELETE expenses/:id/attachments/:fileId`: 권한 다운로드/현재 증빙 제외. DELETE에 version query 필수.
+- `GET journals`, `POST journals/:id/reverse`: 원장 조회와 열린 기간 역분개. reverse는 postedOn/reason 필수.
+
+금액은 1–999999999999 정수 원화이며 PostgreSQL Decimal(15,0)에 저장한다. API는 안전한 정수 Number로 반환한다.
+상신 당시 순차 결재자 1–5명과 증빙을 보존한다. 자기 승인/중복 결재자/선행 승인 건너뛰기를 거부한다.
+지급은 승인된 전액 1회만 기록하며 회계 분개와 원자적으로 처리한다. 지급 참조는 교회 내 고유하다.
+실제 금융기관 송금 API는 없다. CARD는 즉시 자산에서 출금된 체크카드 결제 기록이며 미지급 신용카드 회계는 후속이다.
+설정·승인·지급·마감·역분개는 최근 15분 인증을 요구한다. 운영의 재정 처리자는 MFA를 확인한다.

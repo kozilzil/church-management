@@ -268,3 +268,74 @@ footer {
     padding: 10px 12px;
   }
 }
+
+.finance-panel textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccd3cd;
+  border-radius: 8px;
+  font: inherit;
+  box-sizing: border-box;
+}
+.finance-panel fieldset {
+  border: 1px solid #d9ded9;
+  border-radius: 10px;
+  padding: 16px;
+  margin: 18px 0;
+}
+.finance-panel .approval-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.finance-panel .approval-person span {
+  flex: 1;
+}
+.expense-detail {
+  margin-top: 24px;
+  border-top: 1px solid #d9ded9;
+  padding-top: 20px;
+}
+.expense-amount {
+  font-size: 1.6rem;
+  font-weight: 650;
+}
+.status-pill {
+  font-size: 0.8rem;
+  background: #e6eee8;
+  padding: 6px 10px;
+  border-radius: 20px;
+  margin-left: 10px;
+}
+.submission,
+.submit-review,
+.evidence-preview {
+  border: 1px solid #d9ded9;
+  padding: 18px;
+  margin: 16px 0;
+  border-radius: 12px;
+}
+.evidence-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 10px 0;
+}
+.evidence-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 500px;
+  object-fit: contain;
+  margin-bottom: 12px;
+}
+.evidence-preview a {
+  margin-right: 18px;
+}
+.finance-panel details {
+  margin: 16px 0;
+}
+.finance-panel summary {
+  cursor: pointer;
+}

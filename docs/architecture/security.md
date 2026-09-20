@@ -63,7 +63,10 @@ UserRole의 복합 외래 키는 다른 교회의 사용자와 역할 연결을 
 ## 세션과 운영 관리자
 
 기본 adapter는 서버 세션을 DB에서 검증한다. 세션이 없으면 인증 실패다. production에서는
-MFA_ENCRYPTION_KEY 설정이 필수이며 관리자(identity.manage)는 MFA가 확인된 세션으로만
+MFA_ENCRYPTION_KEY 설정이 필수이며 관리자(identity.manage)와 재정 처리자(finance.manage/expense.approve/expense.pay/finance.close/finance.reverse)는 MFA가 확인된 세션으로만
 업무에 접근한다. session.read 권한은 자기 계정 조회·보안 설정에만 사용한다.
 세션/CSRF/권한 및 MFA 정책은 ADR-005에 명시되어 있다.
 요청 로그는 query·body·cookie·인증 헤더를 포함하지 않고 경로와 기술 식별자 중심으로 기록한다.
+
+재정 접근은 교적 담당 범위와 별도로 교회·업무 참여·재정 권한을 검사한다. 시스템 관리자는 설정 권한만 자동 부여받는다.
+증빙 파일은 인증된 지출 상세 권한으로 다운로드하며 요청 로그/감사 이벤트에 파일명·금액·수령인·결재 의견 본문을 넣지 않는다.

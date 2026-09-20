@@ -57,9 +57,8 @@ flowchart LR
 3. `api`: 인증, 업무 API, background worker 진입점
 4. `postgres`: 영속 데이터 저장소
 
-파일 첨부는 로컬 디스크가 아니라 S3 호환 object storage interface를 사용한다.
-개발 환경에서는 호환 로컬 서비스를 사용할 수 있고 운영 환경 구현은 배포 ADR로
-결정한다.
+파일 첨부는 storage port 뒤에 둔다. 초기 단일 서버의 지출 증빙은 ADR-007에 따라
+기존 uploads named volume의 비공개 adapter를 사용하고, S3 adapter로 교체할 수 있게 한다.
 
 서버 PC 배포는 production Docker Compose로 표준화한다. DB migration은 one-shot
 service가 먼저 성공해야 API가 시작되며, DB와 업로드 파일은 named volume에 보존한다.

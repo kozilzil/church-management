@@ -73,3 +73,9 @@ erDiagram
 - 세례/입교/교육 이력을 별도 sacrament/education 모델로 분리할지 여부
 - 이름의 한글/영문/검색용 정규화 방식
 - 개인정보 보존과 파기 기간
+
+## Expense와 Accounting aggregate
+
+ExpenseRequest는 수정 가능한 초안과 현재 상태·버전을 가진다. ExpenseSubmission은 회차별 원본 내용과 결재선/증빙 연결을 보존한다.
+ExpensePayment는 한 요청의 전액 지급 기록이며 JournalEntry에 연결된다. JournalEntry/JournalLine은 균형을 DB 커밋 경계에서 검증하고 이후 변경하지 않는다.
+EvidenceStorage port의 초기 adapter는 비공개 uploads volume이며 ADR-007을 따른다.

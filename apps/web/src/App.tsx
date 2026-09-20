@@ -1,3 +1,4 @@
+import { FinancePanel } from './FinancePanel';
 import { CarePanel } from './CarePanel';
 import { NewcomerPanel } from './NewcomerPanel';
 import { AttendancePanel } from './AttendancePanel';
@@ -168,6 +169,13 @@ export function App() {
     const result = await api<Session>('/auth/me');
     setCsrf(result.csrfToken);
     setSession(result);
+    if (
+      !result.permissions.includes('membership.read') &&
+      result.permissions.some((p) =>
+        ['expense.read', 'finance.manage', 'finance.readall'].includes(p),
+      )
+    )
+      setTab('finance');
     return result;
   }
   useEffect(() => {
@@ -175,6 +183,13 @@ export function App() {
       .then((result) => {
         setCsrf(result.csrfToken);
         setSession(result);
+        if (
+          !result.permissions.includes('membership.read') &&
+          result.permissions.some((p) =>
+            ['expense.read', 'finance.manage', 'finance.readall'].includes(p),
+          )
+        )
+          setTab('finance');
       })
       .catch(() => setSession(null))
       .finally(() => setChecking(false));
@@ -331,6 +346,7 @@ export function App() {
           ['positions', '직분'],
           ['audit', '감사 기록'],
           ['admin', '계정·권한'],
+          ['finance', '지출 결재·재정'],
           ['care', '심방·목양'],
           ['newcomers', '새가족'],
           ['attendance', '모임·출석'],
@@ -339,6 +355,8 @@ export function App() {
         ]
           .filter(([key]) => {
             if (key === 'account') return true;
+            if (key === 'finance')
+              return can('expense.read') || can('finance.manage') || can('finance.readall');
             if (key === 'attendance') return can('attendance.read');
             if (key === 'newcomers') return can('newcomer.read');
             if (key === 'care') return can('care.read');
@@ -365,11 +383,20 @@ export function App() {
           {message}
         </p>
       )}
-      {!session.mfaVerified && can('identity.manage') && (
-        <p className="notice">
-          운영 관리자는 내 계정에서 MFA를 등록한 뒤 인증 코드를 사용해 다시 로그인하세요.
-        </p>
-      )}
+      {!session.mfaVerified &&
+        [
+          'identity.manage',
+          'finance.manage',
+          'expense.approve',
+          'expense.pay',
+          'finance.close',
+          'finance.reverse',
+        ].some(can) && (
+          <p className="notice">
+            운영 관리자·재정 처리자는 내 계정에서 MFA를 등록한 뒤 인증 코드를 사용해 다시
+            로그인하세요.
+          </p>
+        )}
       {tab === 'members' && (
         <>
           <section className="panel">
@@ -1037,6 +1064,9 @@ export function App() {
             />
           </div>
         </>
+      )}
+      {tab === 'finance' && (
+        <FinancePanel root={root} permissions={session.permissions} userId={session.userId} />
       )}
       {tab === 'care' && (
         <CarePanel

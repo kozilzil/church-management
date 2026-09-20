@@ -31,3 +31,34 @@ export async function api<T>(path: string, body?: unknown, method = 'POST'): Pro
     );
   return value as T;
 }
+
+export async function uploadEvidence<T>(path: string, file: File): Promise<T> {
+  const body = new FormData();
+  body.append('file', file);
+  const response = await fetch(`/api/v1${path}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'x-csrf-token': csrf },
+    body,
+  });
+  const value = await response.json();
+  if (!response.ok)
+    throw new ApiFailure(
+      value.error?.message ?? '첨부하지 못했습니다.',
+      value.error?.code ?? 'UNKNOWN',
+      response.status,
+    );
+  return value as T;
+}
+export async function evidenceBlob(path: string): Promise<Blob> {
+  const response = await fetch(`/api/v1${path}`, { credentials: 'same-origin' });
+  if (!response.ok) {
+    const value = await response.json();
+    throw new ApiFailure(
+      value.error?.message ?? '파일을 읽지 못했습니다.',
+      value.error?.code ?? 'UNKNOWN',
+      response.status,
+    );
+  }
+  return response.blob();
+}

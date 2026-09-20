@@ -1,3 +1,4 @@
+import { FinanceModule } from './modules/finance/finance.module';
 import { MaintenanceService } from './platform/maintenance.service';
 import { OperationsModule } from './modules/operations/operations.module';
 import { RegistryModule } from './modules/registry/registry.module';
@@ -20,6 +21,7 @@ import { createHttpLoggerOptions } from './platform/logging/http-logger.config';
     IdentityModule,
     RegistryModule,
     OperationsModule,
+    FinanceModule,
   ],
 })
 export class AppModule {}
