@@ -3,7 +3,13 @@
   "compilerOptions": {
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "noEmit": true
+    "noEmit": true,
+    "lib": [
+      "ES2023",
+      "DOM"
+    ]
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts"
+  ]
 }

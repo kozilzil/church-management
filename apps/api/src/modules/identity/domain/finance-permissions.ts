@@ -8,6 +8,8 @@ export const financePermissions = [
   'receipt.issue',
   'receipt.print',
   'receipt.cancel',
+  'receipt.export',
+  'receipt.reconcile',
   'expense.read',
   'expense.write',
   'expense.approve',

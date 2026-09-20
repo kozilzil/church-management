@@ -105,7 +105,14 @@ describe.skipIf(!enabled)('Individual offerings and donation receipts', () => {
       entry: ['offering.read', 'offering.write', 'offering.review'],
       reviewer: ['offering.read', 'offering.review'],
       poster: ['offering.read', 'offering.post', 'offering.reverse', 'finance.reverse'],
-      issuer: ['receipt.read', 'receipt.issue', 'receipt.print', 'receipt.cancel'],
+      issuer: [
+        'receipt.read',
+        'receipt.issue',
+        'receipt.print',
+        'receipt.cancel',
+        'receipt.export',
+        'receipt.reconcile',
+      ],
       reader: ['receipt.read'],
       member: ['membership.read'],
     };
@@ -455,6 +462,262 @@ describe.skipIf(!enabled)('Individual offerings and donation receipts', () => {
     await call('entry', 'post', '/donors', { memberId: m.id, name: m.name, address: '' }).expect(
       400,
     );
+  });
+  async function prepareHometax(ids: string[]) {
+    const p = await preview();
+    return {
+      requestId: randomUUID(),
+      donorId: donor,
+      taxYear: 2020,
+      offeringIds: ids,
+      donorVersion: p.donor.version,
+      issuerVersion: p.issuer.version,
+      identityConfirmed: true,
+      hometaxAuthorityConfirmed: true,
+      contactName: '가상 담당',
+      contactPhone: '02-0000-0000',
+    };
+  }
+  it('reserves posted donations atomically for Hometax, including electronic-only issuers, with idempotent retries', async () => {
+    const current = await db.receiptIssuer.findUniqueOrThrow({ where: { churchId: church } });
+    await call('manager', 'post', '/receipt-issuer', {
+      ...issuerData,
+      registrationNumber: '000-00-00015',
+      electronicRequired: true,
+      version: current.version,
+    }).expect(201);
+    const id = await posted();
+    const command = await prepareHometax([id]);
+    const rs = await Promise.all([
+      call('issuer', 'post', '/hometax-submissions', command),
+      call('issuer', 'post', '/hometax-submissions', command),
+    ]);
+    expect(
+      rs.map((r) => r.status),
+      rs.map((r) => r.text).join('\n'),
+    ).toEqual([201, 201]);
+    expect(rs[0].body.id).toBe(rs[1].body.id);
+    const path = '/hometax-submissions/' + rs[0].body.id;
+    const r = await call('issuer', 'get', path).expect(200);
+    expect(r.body.items[0].state).toBe('PENDING');
+    expect(r.body).not.toHaveProperty('createdXid');
+    await call('issuer', 'post', path + '/download', { notSubmittedConfirmed: true }).expect(201);
+    await call('issuer', 'post', path + '/download', { notSubmittedConfirmed: false }).expect(400);
+    await call('issuer', 'post', '/hometax-submissions', {
+      ...command,
+      requestId: randomUUID(),
+    }).expect(400);
+    await call('issuer', 'post', '/hometax-submissions', {
+      ...command,
+      contactName: '변경',
+    }).expect(409);
+    expect((await preview()).items.some((x: { id: string }) => x.id === id)).toBe(false);
+    await issue([id]).then((r) => expect(r.status).toBe(400));
+    await call('poster', 'post', `/offerings/${id}/reverse`, {
+      postedOn: '2020-06-02',
+      reason: '가상 정정',
+    }).expect(400);
+    await expect(db.receiptClaim.delete({ where: { offeringId: id } })).rejects.toThrow();
+    await expect(
+      db.hometaxSubmission.update({ where: { id: r.body.id }, data: { donorName: '변경' } }),
+    ).rejects.toThrow();
+    await expect(
+      db.hometaxItem.update({ where: { id: r.body.items[0].id }, data: { amount: 1 } }),
+    ).rejects.toThrow();
+  });
+  it('supports partial Hometax outcomes and only releases claims after explicit non-issuance or cancellation', async () => {
+    const ids = [await posted(), await posted()];
+    const r = await call(
+      'issuer',
+      'post',
+      '/hometax-submissions',
+      await prepareHometax(ids),
+    ).expect(201);
+    const path = '/hometax-submissions/' + r.body.id;
+    const s = (await call('issuer', 'get', path)).body;
+    const [one, two] = s.items as { id: string; offeringId: string }[];
+    const result = (state: string) => ({
+      state,
+      reference: 'SYNTHETIC-HOMETAX-REF',
+      reason: '합성 자료 대조',
+      checkedInHometax: true,
+    });
+    const p1 = path + '/items/' + one!.id + '/results',
+      p2 = path + '/items/' + two!.id + '/results';
+    await call('issuer', 'post', p1, result('CANCELLED')).expect(400);
+    await call('issuer', 'post', p1, { ...result('ISSUED'), checkedInHometax: false }).expect(400);
+    await call('issuer', 'post', p1, result('ISSUED')).expect(201);
+    await call('issuer', 'post', p1, result('ISSUED')).expect(201);
+    await call('issuer', 'post', p1, { ...result('ISSUED'), reference: 'changed' }).expect(409);
+    await call('issuer', 'post', p1, result('NOT_ISSUED')).expect(400);
+    await call('issuer', 'post', p2, result('NOT_ISSUED')).expect(201);
+    await call('issuer', 'post', path + '/download', { notSubmittedConfirmed: true }).expect(400);
+    expect(await db.receiptClaim.count({ where: { offeringId: one!.offeringId } })).toBe(1);
+    expect(await db.receiptClaim.count({ where: { offeringId: two!.offeringId } })).toBe(0);
+    await expect(
+      db.hometaxResult.updateMany({ where: { itemId: one!.id }, data: { reference: 'changed' } }),
+    ).rejects.toThrow();
+    await call(
+      'issuer',
+      'post',
+      '/hometax-submissions',
+      await prepareHometax([two!.offeringId]),
+    ).expect(201);
+    await call('issuer', 'post', p1, result('CANCELLED')).expect(201);
+    expect(await db.receiptClaim.count({ where: { offeringId: one!.offeringId } })).toBe(0);
+    expect(
+      (await call('issuer', 'get', path)).body.items.find((i: { id: string }) => i.id === one!.id)
+        .state,
+    ).toBe('CANCELLED');
+    await call('poster', 'post', `/offerings/${one!.offeringId}/reverse`, {
+      postedOn: '2020-06-02',
+      reason: '합성 정정',
+    }).expect(201);
+  });
+  it('validates Hometax permissions, tenant boundaries, format, identity non-acceptance, and recent authentication', async () => {
+    const id = await posted(),
+      command = await prepareHometax([id]);
+    await call('reader', 'post', '/hometax-submissions', command).expect(403);
+    await call('issuer', 'post', '/hometax-submissions', {
+      ...command,
+      residentNumber: '0001013000000',
+    }).expect(400);
+    await call('issuer', 'post', '/hometax-submissions', { ...command, contactName: 'A|B' }).expect(
+      400,
+    );
+    await call('issuer', 'post', '/hometax-submissions', { ...command, contactName: '😀' }).expect(
+      400,
+    );
+    await call('issuer', 'post', '/hometax-submissions', {
+      ...command,
+      donorId: foreignDonor,
+    }).expect(404);
+    await call('issuer', 'post', '/hometax-submissions', { ...command, issuerVersion: 0 }).expect(
+      400,
+    );
+    await call('issuer', 'post', '/hometax-submissions', { ...command, issuerVersion: 1 }).expect(
+      409,
+    );
+    expect(await db.receiptClaim.count({ where: { offeringId: id } })).toBe(0);
+    const s = (await call('issuer', 'post', '/hometax-submissions', command).expect(201)).body;
+    const path = '/hometax-submissions/' + s.id;
+    await request(app.getHttpServer())
+      .get(`/api/v1/churches/${other}/finance/hometax-submissions/${s.id}`)
+      .set('Cookie', sessions.issuer!.cookie)
+      .expect(403);
+    await call('reader', 'post', path + '/download', { notSubmittedConfirmed: true }).expect(403);
+    await call('issuer', 'post', path + '/items/' + randomUUID() + '/results', {
+      state: 'ISSUED',
+      reference: 'TEST',
+      reason: 'test',
+      checkedInHometax: true,
+    }).expect(404);
+    const env = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      await call('issuer', 'get', path).expect(403);
+    } finally {
+      process.env.NODE_ENV = env;
+    }
+    await db.session.updateMany({
+      where: { userId: sessions.issuer!.id },
+      data: { createdAt: new Date(Date.now() - 16 * 60000) },
+    });
+    try {
+      await call('issuer', 'post', path + '/download', { notSubmittedConfirmed: true }).expect(401);
+    } finally {
+      await db.session.updateMany({
+        where: { userId: sessions.issuer!.id },
+        data: { createdAt: new Date() },
+      });
+    }
+  });
+  it('serializes paper issuance against Hometax preparation and blocks direct ledger reversal of reserved donations', async () => {
+    const current = await db.receiptIssuer.findUniqueOrThrow({ where: { churchId: church } });
+    await call('manager', 'post', '/receipt-issuer', {
+      ...issuerData,
+      registrationNumber: '000-00-00015',
+      version: current.version,
+    }).expect(201);
+    const id = await posted(),
+      cmd = await prepareHometax([id]);
+    const paper = {
+      donorId: donor,
+      taxYear: 2020,
+      offeringIds: [id],
+      donorVersion: cmd.donorVersion,
+      issuerVersion: cmd.issuerVersion,
+      identityConfirmed: true,
+    };
+    const rs = await Promise.all([
+      call('issuer', 'post', '/hometax-submissions', cmd),
+      call('issuer', 'post', '/receipts', paper),
+    ]);
+    expect(rs.map((r) => r.status).sort()).toEqual([201, 400]);
+    expect(await db.receiptClaim.count({ where: { offeringId: id } })).toBe(1);
+    const another = await posted();
+    const prepared = (
+      await call('issuer', 'post', '/hometax-submissions', await prepareHometax([another])).expect(
+        201,
+      )
+    ).body;
+    expect((await issue([another])).status).toBe(400);
+    const o = await detail(another);
+    await expect(
+      db.journalEntry.create({
+        data: {
+          churchId: church,
+          description: 'synthetic',
+          postedOn: new Date('2020-06-02'),
+          periodId: period,
+          postedBy: sessions.poster!.id,
+          reversalOf: o.journalId,
+        },
+      }),
+    ).rejects.toThrow(/Cancel the receipt/);
+    const snapshot = await db.hometaxSubmission.findUniqueOrThrow({ where: { id: prepared.id } });
+    await expect(
+      db.hometaxSubmission.create({
+        data: { ...snapshot, id: randomUUID(), requestId: randomUUID() },
+      }),
+    ).rejects.toThrow();
+  });
+  it('records and releases Hometax claims using production-style privileges without UPDATE on immutable tables', async () => {
+    const id = await posted();
+    const s = (
+      await call('issuer', 'post', '/hometax-submissions', await prepareHometax([id])).expect(201)
+    ).body;
+    const i = await db.hometaxItem.findFirstOrThrow({ where: { submissionId: s.id } });
+    const role = 'hometax_runtime_' + randomUUID().replaceAll('-', '');
+    await db.$transaction(
+      async (tx) => {
+        await tx.$executeRawUnsafe(`CREATE ROLE "${role}"`);
+        await tx.$executeRawUnsafe(`GRANT USAGE ON SCHEMA public TO "${role}"`);
+        await tx.$executeRawUnsafe(
+          `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "${role}"`,
+        );
+        await tx.$executeRawUnsafe(
+          `REVOKE UPDATE, DELETE ON hometax_submission,hometax_item,hometax_result FROM "${role}"`,
+        );
+        await tx.$executeRawUnsafe(`SET LOCAL ROLE "${role}"`);
+        await tx.hometaxResult.create({
+          data: {
+            churchId: church,
+            itemId: i.id,
+            state: 'NOT_ISSUED',
+            reference: 'SYNTHETIC-NOT-SUBMITTED',
+            reason: '제출 전 철회 확인',
+            recordedBy: sessions.issuer!.id,
+          },
+        });
+        await tx.receiptClaim.delete({ where: { offeringId: id } });
+        await tx.$executeRawUnsafe('RESET ROLE');
+        await tx.$executeRawUnsafe(`DROP OWNED BY "${role}"`);
+        await tx.$executeRawUnsafe(`DROP ROLE "${role}"`);
+      },
+      { timeout: 30000 },
+    );
+    expect(await db.receiptClaim.count({ where: { offeringId: id } })).toBe(0);
   });
   it('requires recent authentication and production MFA; closed periods cannot receive offerings', async () => {
     const nodeEnv = process.env.NODE_ENV;

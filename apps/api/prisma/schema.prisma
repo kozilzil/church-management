@@ -814,11 +814,67 @@ model DonationReceiptItem {
 }
 
 model ReceiptClaim {
-  offeringId String @id @map("offering_id") @db.Uuid
-  churchId   String @map("church_id") @db.Uuid
-  receiptId  String @map("receipt_id") @db.Uuid
+  offeringId    String  @id @map("offering_id") @db.Uuid
+  churchId      String  @map("church_id") @db.Uuid
+  receiptId     String? @map("receipt_id") @db.Uuid
+  hometaxItemId String? @unique @map("hometax_item_id") @db.Uuid
 
   @@map("receipt_claim")
+}
+
+model HometaxSubmission {
+  id                       String        @id @default(uuid()) @db.Uuid
+  churchId                 String        @map("church_id") @db.Uuid
+  requestId                String        @map("request_id") @db.Uuid
+  donorId                  String        @map("donor_id") @db.Uuid
+  taxYear                  Int           @map("tax_year")
+  donorName                String        @map("donor_name")
+  issuerName               String        @map("issuer_name")
+  issuerRegistrationNumber String        @map("issuer_registration_number")
+  contactName              String        @map("contact_name")
+  contactPhone             String        @map("contact_phone")
+  preparedOn               DateTime      @map("prepared_on") @db.Date
+  totalAmount              Decimal       @map("total_amount") @db.Decimal(18, 0)
+  preparedBy               String        @map("prepared_by") @db.Uuid
+  createdAt                DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  createdXid               BigInt        @default(dbgenerated("txid_current()")) @map("created_xid")
+  items                    HometaxItem[]
+
+  @@unique([churchId, id])
+  @@unique([churchId, requestId])
+  @@index([churchId, donorId, taxYear, id])
+  @@map("hometax_submission")
+}
+
+model HometaxItem {
+  id           String            @id @default(uuid()) @db.Uuid
+  churchId     String            @map("church_id") @db.Uuid
+  submissionId String            @map("submission_id") @db.Uuid
+  offeringId   String            @map("offering_id") @db.Uuid
+  givenOn      DateTime          @map("given_on") @db.Date
+  amount       Decimal           @db.Decimal(15, 0)
+  submission   HometaxSubmission @relation(fields: [churchId, submissionId], references: [churchId, id])
+  results      HometaxResult[]
+
+  @@unique([churchId, id])
+  @@unique([churchId, id, offeringId])
+  @@unique([submissionId, offeringId])
+  @@map("hometax_item")
+}
+
+model HometaxResult {
+  id         String      @id @default(uuid()) @db.Uuid
+  churchId   String      @map("church_id") @db.Uuid
+  itemId     String      @map("item_id") @db.Uuid
+  state      String
+  reference  String
+  reason     String
+  recordedBy String      @map("recorded_by") @db.Uuid
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  item       HometaxItem @relation(fields: [churchId, itemId], references: [churchId, id])
+
+  @@unique([itemId, state])
+  @@map("hometax_result")
 }
 
 model ReceiptCancellation {

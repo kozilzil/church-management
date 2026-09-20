@@ -135,3 +135,17 @@ assigneeId를 지원한다. profile/출석/새가족/목양 변경은 해당 ver
 `receipt-issuer`는 발급기관 설정, `receipts/preview`는 발급 전 계산, `receipts` POST는 확정 번호 생성이다.
 `receipts/:id/print` POST는 권한/최근 인증/유효 상태를 재검사하고 출력 감사 이벤트와 스냅샷을 반환한다.
 주민등록번호를 받는 API 필드는 없다. `receipts/:id/cancel`은 별도 취소 기록과 활성 항목 연결 해제다.
+
+## 홈택스 파일 연동
+
+재정 경로 `/churches/:churchId/finance` 아래에 다음 API를 제공한다. 기존 `/receipts/preview`를 함께 사용한다.
+
+| 경로 | 업무 |
+| --- | --- |
+| `/hometax-submissions` | GET 목록, POST 준비 (requestId로 재시도 중복 방지) |
+| `/hometax-submissions/:id` | GET 불변 스냅샷과 건별 결과 |
+| `/hometax-submissions/:id/download` | POST 미제출 확인 후 파일용 스냅샷·감사 |
+| `/hometax-submissions/:id/items/:itemId/results` | POST 담당자가 확인한 발급/미발급/취소 결과 |
+
+API는 주민등록번호와 완성된 제출 파일을 수신하지 않는다. 다운로드 응답에 브라우저 일회성 입력을
+결합한다. 같은 결과/참조/사유의 재요청은 동일 성공을 반환하고 다른 내용의 덮어쓰기는 충돌로 거부한다.
