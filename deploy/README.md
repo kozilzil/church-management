@@ -146,3 +146,10 @@ JPEG/PNG/PDF 시그니처·크기 검사와 권한 다운로드를 제공하며 
 집계만 필요한 담당자에게는 이 권한만 부여한다. 원장 행 대조는 `finance.readall`, 원거래·증빙은
 `offering.read`/`expense.read`를 추가로 부여한다. CSV는 `finance.export`도 필요하며 운영 MFA 및 최근 인증을 요구한다.
 재정 → 재정보고서에서 조회한 뒤 현재 표시 결과를 내보낸다. [상세 정책](../docs/decisions/ADR-010-financial-reports.md).
+
+## 예산 담당자 설정
+
+역할에 `budget.read`를 부여하면 재정 → 연간 예산에서 집계와 이력을 조회한다.
+편성 담당자는 `budget.write`도 필요하며 운영 MFA와 최근 15분 인증을 확인한다. 권한 변경 뒤 재로그인한다.
+저장 즉시 연간 예산에 반영되므로 교회의 승인된 예산 자료를 입력한다. 이번 기능은 결재/지급을 차단하지 않는다.
+`budget_revision`은 PostgreSQL 백업에 포함하며 runtime의 UPDATE/DELETE 권한을 회수한다.

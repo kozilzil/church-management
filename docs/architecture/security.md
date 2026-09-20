@@ -87,3 +87,9 @@ finance.report는 교회 전체 합계 조회 권한이며 교적 또는 개인 
 원장 상세는 finance.readall, 헌금/지출 원거래와 증빙은 각각 offering.read/expense.read를 추가로 검사한다.
 집계 CSV는 finance.export와 finance.report가 모두 필요하고 최근 15분 인증·CSRF·Origin·운영 MFA를 검사한다.
 집계·상세·내보내기는 감사하되 기부자·수령인·자유기재 설명·금액을 감사 payload에 남기지 않는다.
+
+## 예산 권한
+
+budget.read는 교회 전체 예산·집행률·변경 이력을 허용하며 원거래 개인정보는 반환하지 않는다.
+budget.write는 budget.read, 최근 인증, CSRF·Origin 및 운영 MFA와 함께 검사한다.
+새 권한은 기존 역할에 자동 부여하지 않는다. 변경 사유와 금액은 업무 이력에만 기록하고 감사 로그에는 담지 않는다.

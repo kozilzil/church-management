@@ -173,7 +173,13 @@ export function App() {
     if (
       !result.permissions.includes('membership.read') &&
       result.permissions.some((p) =>
-        ['expense.read', 'finance.manage', 'finance.readall', 'finance.report'].includes(p),
+        [
+          'expense.read',
+          'finance.manage',
+          'finance.readall',
+          'finance.report',
+          'budget.read',
+        ].includes(p),
       )
     )
       setTab('finance');
@@ -192,7 +198,13 @@ export function App() {
         if (
           !result.permissions.includes('membership.read') &&
           result.permissions.some((p) =>
-            ['expense.read', 'finance.manage', 'finance.readall', 'finance.report'].includes(p),
+            [
+              'expense.read',
+              'finance.manage',
+              'finance.readall',
+              'finance.report',
+              'budget.read',
+            ].includes(p),
           )
         )
           setTab('finance');
@@ -374,7 +386,8 @@ export function App() {
                 can('expense.read') ||
                 can('finance.manage') ||
                 can('finance.readall') ||
-                can('finance.report')
+                can('finance.report') ||
+                can('budget.read')
               );
             if (key === 'attendance') return can('attendance.read');
             if (key === 'newcomers') return can('newcomer.read');

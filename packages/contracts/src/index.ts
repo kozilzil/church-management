@@ -76,3 +76,4 @@ export interface SessionResponse {
 export * from './hometax.js';
 
 export type * from './financial-reports.js';
+export type * from './budgets.js';

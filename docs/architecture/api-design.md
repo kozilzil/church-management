@@ -164,3 +164,17 @@ API는 주민등록번호와 완성된 제출 파일을 수신하지 않는다. 
 응답 집계 금액과 상세 차변·대변은 정수 문자열이다. JS Number로 변환하지 않는다.
 `selection.ledgerVersion`을 후속 상세·내보내기에 그대로 보내 조회 후 추가된 거래와 섞지 않는다.
 생략된 원장 행과 원거래 설명·개인정보는 집계 API로 노출하지 않는다. 자세한 계산은 ADR-010을 따른다.
+
+## 연간 예산
+
+`/churches/:churchId/finance/budgets` 아래:
+
+- `GET definitions`: 교회 시간대, 지출 계정 및 기금. budget.read 필요.
+- `GET ?year=2026&fundId=UUID`: 연간 집계. fundId 선택. budget.read 필요.
+- `GET history?year=2026&accountId=UUID&fundId=UUID&beforeVersion=31`: 변경 이력 30개씩,
+  nextBeforeVersion으로 이전 기록 조회. beforeVersion 선택. budget.read 필요.
+- `POST revisions`: year, accountId, fundId, version, amount, reason. budget.read + budget.write 필요.
+  최초 version=0, 이후 현재 항목 version을 전송한다. amount는 최대 15자리 비음수 정수 문자열이며 reason은 1–300자다.
+
+집계 금액은 정수 문자열, 집행률은 소수 둘째 자리까지 문자열이다. 미편성/0원 예산의 집행률은 null이다.
+API는 미편성 잔여액 null과 명시적 0원 예산을 구분한다. 충돌은 VERSION_CONFLICT로 반환한다.

@@ -888,3 +888,19 @@ model ReceiptCancellation {
 
   @@map("receipt_cancellation")
 }
+
+model BudgetRevision {
+  id        String   @id @default(uuid()) @db.Uuid
+  churchId  String   @map("church_id") @db.Uuid
+  year      Int
+  accountId String   @map("account_id") @db.Uuid
+  fundId    String   @map("fund_id") @db.Uuid
+  version   Int
+  amount    Decimal  @db.Decimal(15, 0)
+  reason    String
+  createdBy String   @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([churchId, year, accountId, fundId, version], map: "budget_revision_church_id_year_account_id_fund_id_version_key")
+  @@map("budget_revision")
+}

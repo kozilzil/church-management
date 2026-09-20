@@ -411,3 +411,24 @@ footer {
     margin: 0;
   }
 }
+
+.budget-warning {
+  color: #9b341c;
+  font-weight: 700;
+}
+.budget-history {
+  padding: 1rem 0;
+  border-top: 1px solid #dbe3e9;
+  overflow-wrap: anywhere;
+}
+.budget-panel textarea {
+  min-height: 5rem;
+}
+.budget-panel .report-totals {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 850px) {
+  .budget-panel .report-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
